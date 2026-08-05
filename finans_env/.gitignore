@@ -1,0 +1,6 @@
+finans_env/
+__pycache__/
+*.csv
+*.exe
+*.o
+.DS_Store
