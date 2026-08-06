@@ -47,7 +47,13 @@ https://secure-quant-dashboard.onrender.com/health
 **API documentation:**  
 https://secure-quant-dashboard.onrender.com/docs
 
+### Dashboard Preview
+
+[![Secure Quant Dashboard](docs/images/dashboard.png)](https://secure-quant-dashboard.onrender.com)
+
 ---
+
+
 
 ## Core Features
 
