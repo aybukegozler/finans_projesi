@@ -1,1 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
 *.db
+.env
+.venv/
+venv/
+finans_env/
+
+# macOS
+.DS_Store
+
+# C++ compiled executable
+src/engine
+
+# Generated application data
+data/signals.csv
