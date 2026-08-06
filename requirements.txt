@@ -1,0 +1,7 @@
+fastapi==0.141.1
+uvicorn[standard]==0.52.1
+SQLAlchemy==2.0.51
+pandas==3.0.5
+bcrypt==5.0.0
+python-jose[cryptography]==3.5.0
+python-multipart==0.0.32

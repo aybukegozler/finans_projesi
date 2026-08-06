@@ -3,21 +3,54 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pandas as pd
 import subprocess
 import os
+from contextlib import asynccontextmanager
+from pathlib import Path
 import bcrypt
 
 # Oluşturduğumuz veritabanı modülünü içe aktarıyoruz
-from src.database import SessionLocal, User
+from src.database import SessionLocal, User, create_initial_users
 
-# --- GÜVENLİK AYARLARI ---
-SECRET_KEY = "finans_projesi_super_gizli_anahtar"
+# --- UYGULAMA VE GÜVENLİK AYARLARI ---
+ROOT_DIR = Path(__file__).resolve().parent.parent
+ENGINE_PATH = ROOT_DIR / "src" / "engine"
+SIGNALS_PATH = ROOT_DIR / "data" / "signals.csv"
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+
+if not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY environment variable is required."
+    )
+
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-app = FastAPI()
+ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
+)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    prepared_users = create_initial_users()
+
+    print(
+        f"Hazırlanan environment kullanıcısı: "
+        f"{prepared_users}"
+    )
+
+    yield
+
+
+app = FastAPI(
+    title="Secure Quant Dashboard",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # --- VERİTABANI BAĞLANTISI ---
@@ -34,7 +67,7 @@ def verify_password(plain_password, hashed_password):
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -59,6 +92,15 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 
 # --- API UÇ NOKTALARI ---
 
+@app.get("/health")
+def health_check():
+    return {
+        "status": "ok",
+        "engine_exists": ENGINE_PATH.exists(),
+        "signals_exists": SIGNALS_PATH.exists(),
+    }
+
+
 # 1. Kullanıcı Giriş (Login) Rotası
 @app.post("/token")
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
@@ -77,18 +119,62 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
 @app.get("/api/data")
 def get_market_data(current_user: User = Depends(get_current_user)):
     
-    # ROL KONTROLÜ: Sadece Admin ise C++ Motorunu Tetikle!
+    # Sadece admin C++ motorunu yeniden çalıştırabilir.
     if current_user.role == "admin":
-        subprocess.run(['./src/engine'], capture_output=True)
-        print(f"[{current_user.username}] Admin yetkisiyle C++ motoru tetiklendi.")
+        try:
+            result = subprocess.run(
+                [str(ENGINE_PATH)],
+                cwd=str(ROOT_DIR),
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=True,
+            )
+
+            print(
+                f"[{current_user.username}] "
+                f"C++ motoru çalıştırıldı. "
+                f"{result.stdout.strip()}"
+            )
+
+        except FileNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="C++ hesaplama motoru bulunamadı.",
+            ) from error
+
+        except subprocess.TimeoutExpired as error:
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                detail="C++ motoru zaman aşımına uğradı.",
+            ) from error
+
+        except subprocess.CalledProcessError as error:
+            print(
+                f"C++ motor hatası: {error.stderr}"
+            )
+
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=(
+                    "Finansal hesaplama motoru "
+                    "çalıştırılamadı."
+                ),
+            ) from error
+
     else:
-        print(f"[{current_user.username}] Standart kullanıcı mevcut veriyi okuyor.")
-        
-    csv_path = "data/signals.csv"
-    if not os.path.exists(csv_path):
-        return {"error": "Sinyal dosyası bulunamadı."}
-        
-    df = pd.read_csv(csv_path)
+        print(
+            f"[{current_user.username}] "
+            "Mevcut sonuçları okuyor."
+        )
+
+    if not SIGNALS_PATH.exists():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Sinyal dosyası henüz oluşturulmadı.",
+        )
+
+    df = pd.read_csv(SIGNALS_PATH)
     df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
     df['SMA20'] = pd.to_numeric(df['SMA20'], errors='coerce')
     df['SMA50'] = pd.to_numeric(df['SMA50'], errors='coerce')

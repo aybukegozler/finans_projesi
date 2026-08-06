@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: secure-quant-dashboard
+    runtime: python
+    plan: free
+    region: frankfurt
+
+    buildCommand: ./build.sh
+    startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT
+
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
+
+      - key: ADMIN_USERNAME
+        sync: false
+
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      - key: USER_USERNAME
+        sync: false
+
+      - key: USER_PASSWORD
+        sync: false
