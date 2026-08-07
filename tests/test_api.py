@@ -151,3 +151,65 @@ def test_admin_runs_cpp_engine(client):
 
     # ADMIN isteği C++ motorunu yeniden çalıştırmalı.
     assert after > before
+
+
+
+def test_backtest_requires_authentication(client):
+    response = client.get("/api/backtest")
+
+    assert response.status_code == 401
+
+
+def test_normal_user_can_run_backtest(client):
+    login_response = login(
+        client,
+        os.environ["USER_USERNAME"],
+        os.environ["USER_PASSWORD"],
+    )
+
+    response = client.get(
+        "/api/backtest?initial_capital=10000",
+        headers=auth_header(
+            login_response["access_token"]
+        ),
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["strategy"] == "SMA20/SMA50 Crossover"
+    assert body["requested_by_role"] == "user"
+
+    assert "summary" in body
+    assert "equity_curve" in body
+
+    summary = body["summary"]
+
+    assert summary["initial_capital"] == 10000.0
+    assert summary["final_value"] > 0
+    assert summary["closed_trades"] >= 0
+
+    assert isinstance(
+        body["equity_curve"],
+        list,
+    )
+
+    assert len(body["equity_curve"]) > 0
+
+
+def test_backtest_rejects_invalid_capital(client):
+    login_response = login(
+        client,
+        os.environ["USER_USERNAME"],
+        os.environ["USER_PASSWORD"],
+    )
+
+    response = client.get(
+        "/api/backtest?initial_capital=0",
+        headers=auth_header(
+            login_response["access_token"]
+        ),
+    )
+
+    assert response.status_code == 400

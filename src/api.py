@@ -20,6 +20,8 @@ from src.database import (
     get_database_backend,
 )
 
+from src.backtest import run_backtest
+
 # --- UYGULAMA VE GÜVENLİK AYARLARI ---
 ROOT_DIR = Path(__file__).resolve().parent.parent
 ENGINE_PATH = ROOT_DIR / "src" / "engine"
@@ -221,6 +223,66 @@ def get_market_data(current_user: User = Depends(get_current_user)):
     if len(data_list) == 0:
          return {"error": "Veri var ama tablo boş!"}
     return data_list
+
+# 3. Backtest Analiz Rotası
+@app.get("/api/backtest")
+def get_backtest_results(
+    initial_capital: float = 10_000.0,
+    current_user: User = Depends(get_current_user),
+):
+    if initial_capital <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Başlangıç sermayesi sıfırdan büyük olmalıdır.",
+        )
+
+    if initial_capital > 100_000_000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Başlangıç sermayesi çok yüksek.",
+        )
+
+    if not SIGNALS_PATH.exists():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Backtest için sinyal dosyası bulunamadı.",
+        )
+
+    try:
+        result = run_backtest(
+            signals_path=SIGNALS_PATH,
+            initial_capital=initial_capital,
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Backtest veri dosyası bulunamadı.",
+        ) from error
+
+    except Exception as error:
+        print(
+            "Backtest hatası: "
+            f"{type(error).__name__}"
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Backtest hesaplaması tamamlanamadı.",
+        ) from error
+
+    return {
+        "strategy": "SMA20/SMA50 Crossover",
+        "requested_by_role": current_user.role,
+        **result,
+    }
+
 
 # 3. Ön Yüz (Frontend)
 @app.get("/", response_class=HTMLResponse)
