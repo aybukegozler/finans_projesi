@@ -8,6 +8,7 @@ A secure full-stack algorithmic trading dashboard that calculates moving-average
 
 <br>
 
+[![CI](https://github.com/aybukegozler/finans_projesi/actions/workflows/ci.yml/badge.svg)](https://github.com/aybukegozler/finans_projesi/actions/workflows/ci.yml)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Open%20Dashboard-46E3B7?style=for-the-badge)](https://secure-quant-dashboard.onrender.com)
 [![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white)](#)
 [![C++](https://img.shields.io/badge/C++-17-00599C?style=for-the-badge&logo=cplusplus&logoColor=white)](#)
