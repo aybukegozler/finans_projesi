@@ -311,8 +311,137 @@ def read_root():
             .header-text p { color: #8a919e; margin: 0; }
             .role-badge { background: #00E676; color: #131722; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; margin-left: 10px; vertical-align: middle; }
             .btn-logout { padding: 8px 20px; background: #FF5252; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-            #chart-container { width: 100%; height: 600px; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-            #error-box { color: #FF5252; text-align: center; margin-top: 20px; font-weight: bold; }
+            #chart-container {
+                width: 100%;
+                height: 600px;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            }
+
+            #error-box {
+                color: #FF5252;
+                text-align: center;
+                margin-top: 20px;
+                font-weight: bold;
+            }
+
+            .section-title {
+                color: #fff;
+                margin: 32px 0 14px;
+                font-size: 20px;
+            }
+
+            .backtest-toolbar {
+                display: flex;
+                gap: 12px;
+                align-items: end;
+                flex-wrap: wrap;
+                margin-bottom: 16px;
+            }
+
+            .backtest-control {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            .backtest-control label {
+                color: #8a919e;
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.6px;
+            }
+
+            .backtest-control input {
+                width: 180px;
+                padding: 10px 12px;
+                background: #1E222D;
+                color: #fff;
+                border: 1px solid #434651;
+                border-radius: 6px;
+                outline: none;
+            }
+
+            .btn-backtest {
+                padding: 10px 18px;
+                background: #2962FF;
+                color: #fff;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: bold;
+            }
+
+            .btn-backtest:hover {
+                background: #1E4BD8;
+            }
+
+            .metrics-grid {
+                display: grid;
+                grid-template-columns: repeat(
+                    auto-fit,
+                    minmax(170px, 1fr)
+                );
+                gap: 14px;
+                margin-bottom: 18px;
+            }
+
+            .metric-card {
+                background: #1E222D;
+                border: 1px solid #2B2B43;
+                border-radius: 10px;
+                padding: 18px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            }
+
+            .metric-label {
+                color: #8a919e;
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: 0.7px;
+                text-transform: uppercase;
+                margin-bottom: 8px;
+            }
+
+            .metric-value {
+                color: #fff;
+                font-size: 25px;
+                font-weight: 700;
+            }
+
+            .metric-positive {
+                color: #00E676;
+            }
+
+            .metric-negative {
+                color: #FF5252;
+            }
+
+            .metric-neutral {
+                color: #d1d4dc;
+            }
+
+            .backtest-meta {
+                color: #8a919e;
+                font-size: 13px;
+                margin: 8px 0 14px;
+            }
+
+            #equity-chart-container {
+                width: 100%;
+                height: 340px;
+                background: #1E222D;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.35);
+            }
+
+            #backtest-error {
+                color: #FF5252;
+                margin-top: 10px;
+                font-weight: bold;
+            }
         </style>
     </head>
     <body>
@@ -341,6 +470,114 @@ def read_root():
             </div>
             <div id="chart-container"></div>
             <div id="error-box"></div>
+
+            <h2 class="section-title">
+                Strategy Backtest
+            </h2>
+
+            <div class="backtest-toolbar">
+                <div class="backtest-control">
+                    <label for="initial-capital">
+                        Initial Capital
+                    </label>
+
+                    <input
+                        type="number"
+                        id="initial-capital"
+                        value="10000"
+                        min="1"
+                        max="100000000"
+                        step="1000"
+                    >
+                </div>
+
+                <button
+                    class="btn-backtest"
+                    onclick="loadBacktestData()"
+                >
+                    Backtesti Yenile
+                </button>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Strategy Return
+                    </div>
+                    <div
+                        id="metric-strategy-return"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Buy & Hold
+                    </div>
+                    <div
+                        id="metric-buy-hold"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Max Drawdown
+                    </div>
+                    <div
+                        id="metric-drawdown"
+                        class="metric-value metric-negative"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Win Rate
+                    </div>
+                    <div
+                        id="metric-win-rate"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Final Portfolio
+                    </div>
+                    <div
+                        id="metric-final-value"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Closed Trades
+                    </div>
+                    <div
+                        id="metric-trades"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+            </div>
+
+            <div id="backtest-meta" class="backtest-meta"></div>
+
+            <div id="equity-chart-container"></div>
+
+            <div id="backtest-error"></div>
         </div>
 
         <script>
@@ -387,13 +624,296 @@ def read_root():
                 badge.innerText = userRole;
                 if(userRole !== 'ADMIN') badge.style.background = '#2962FF'; // Standart kullanıcıya mavi etiket
                 
-                loadChartData(); // Grafiği çizmeye başla
+                loadChartData();
+                loadBacktestData();
             }
 
             // Sayfa yüklendiğinde oturum açık mı kontrol et
             if (localStorage.getItem('quant_token')) {
                 showDashboard();
             }
+
+            // --- BACKTEST DASHBOARD MANTIĞI ---
+
+            function formatPercent(value) {
+                const number = Number(value);
+
+                return (
+                    (number >= 0 ? '+' : '')
+                    + number.toFixed(2)
+                    + '%'
+                );
+            }
+
+            function formatCurrency(value) {
+                return new Intl.NumberFormat(
+                    'en-US',
+                    {
+                        style: 'currency',
+                        currency: 'USD',
+                        maximumFractionDigits: 2
+                    }
+                ).format(Number(value));
+            }
+
+            function setMetricTrend(elementId, value) {
+                const element =
+                    document.getElementById(elementId);
+
+                element.classList.remove(
+                    'metric-positive',
+                    'metric-negative',
+                    'metric-neutral'
+                );
+
+                if (Number(value) > 0) {
+                    element.classList.add(
+                        'metric-positive'
+                    );
+                } else if (Number(value) < 0) {
+                    element.classList.add(
+                        'metric-negative'
+                    );
+                } else {
+                    element.classList.add(
+                        'metric-neutral'
+                    );
+                }
+            }
+
+            function loadBacktestData() {
+                const token =
+                    localStorage.getItem('quant_token');
+
+                const capitalInput =
+                    document.getElementById(
+                        'initial-capital'
+                    );
+
+                const initialCapital =
+                    Number(capitalInput.value);
+
+                const errorBox =
+                    document.getElementById(
+                        'backtest-error'
+                    );
+
+                errorBox.innerText = '';
+
+                if (
+                    !Number.isFinite(initialCapital)
+                    || initialCapital <= 0
+                ) {
+                    errorBox.innerText =
+                        'Başlangıç sermayesi '
+                        + 'sıfırdan büyük olmalıdır.';
+
+                    return;
+                }
+
+                const url =
+                    '/api/backtest?initial_capital='
+                    + encodeURIComponent(
+                        initialCapital
+                    )
+                    + '&v='
+                    + new Date().getTime();
+
+                fetch(
+                    url,
+                    {
+                        headers: {
+                            'Authorization':
+                                'Bearer ' + token
+                        }
+                    }
+                )
+                .then(response => {
+                    if (response.status === 401) {
+                        logout();
+
+                        throw new Error(
+                            'Oturum süresi doldu.'
+                        );
+                    }
+
+                    if (!response.ok) {
+                        return response.json()
+                            .then(body => {
+                                const detail =
+                                    body.detail
+                                    || 'Backtest API hatası';
+
+                                throw new Error(detail);
+                            });
+                    }
+
+                    return response.json();
+                })
+                .then(data => {
+                    const summary = data.summary;
+
+                    const strategyReturn =
+                        document.getElementById(
+                            'metric-strategy-return'
+                        );
+
+                    strategyReturn.innerText =
+                        formatPercent(
+                            summary.total_return_pct
+                        );
+
+                    setMetricTrend(
+                        'metric-strategy-return',
+                        summary.total_return_pct
+                    );
+
+
+                    const buyHold =
+                        document.getElementById(
+                            'metric-buy-hold'
+                        );
+
+                    buyHold.innerText =
+                        formatPercent(
+                            summary.buy_hold_return_pct
+                        );
+
+                    setMetricTrend(
+                        'metric-buy-hold',
+                        summary.buy_hold_return_pct
+                    );
+
+
+                    document.getElementById(
+                        'metric-drawdown'
+                    ).innerText =
+                        '-'
+                        + Number(
+                            summary.max_drawdown_pct
+                        ).toFixed(2)
+                        + '%';
+
+
+                    document.getElementById(
+                        'metric-win-rate'
+                    ).innerText =
+                        Number(
+                            summary.win_rate_pct
+                        ).toFixed(2)
+                        + '%';
+
+
+                    document.getElementById(
+                        'metric-final-value'
+                    ).innerText =
+                        formatCurrency(
+                            summary.final_value
+                        );
+
+
+                    document.getElementById(
+                        'metric-trades'
+                    ).innerText =
+                        summary.closed_trades;
+
+
+                    document.getElementById(
+                        'backtest-meta'
+                    ).innerText =
+                        data.strategy
+                        + ' | '
+                        + summary.first_date
+                        + ' → '
+                        + summary.last_date
+                        + ' | Wins: '
+                        + summary.winning_trades
+                        + ' | Losses: '
+                        + summary.losing_trades;
+
+
+                    const container =
+                        document.getElementById(
+                            'equity-chart-container'
+                        );
+
+                    container.innerHTML = '';
+
+                    const equityChart =
+                        LightweightCharts.createChart(
+                            container,
+                            {
+                                layout: {
+                                    textColor: '#d1d4dc',
+                                    background: {
+                                        type: 'solid',
+                                        color: '#1E222D'
+                                    }
+                                },
+
+                                grid: {
+                                    vertLines: {
+                                        color: '#2B2B43'
+                                    },
+                                    horzLines: {
+                                        color: '#2B2B43'
+                                    }
+                                },
+
+                                crosshair: {
+                                    mode:
+                                        LightweightCharts
+                                        .CrosshairMode
+                                        .Normal
+                                },
+
+                                rightPriceScale: {
+                                    borderColor:
+                                        '#434651'
+                                },
+
+                                timeScale: {
+                                    borderColor:
+                                        '#434651'
+                                }
+                            }
+                        );
+
+                    const equitySeries =
+                        equityChart.addLineSeries({
+                            color: '#7C4DFF',
+                            lineWidth: 2,
+                            title: 'Portfolio Equity',
+                            priceFormat: {
+                                type: 'price',
+                                precision: 2,
+                                minMove: 0.01
+                            }
+                        });
+
+                    const equityData =
+                        data.equity_curve.map(
+                            point => ({
+                                time: point.date,
+                                value:
+                                    Number(point.equity)
+                            })
+                        );
+
+                    equitySeries.setData(
+                        equityData
+                    );
+
+                    equityChart.timeScale()
+                        .fitContent();
+                })
+                .catch(error => {
+                    errorBox.innerText =
+                        'Backtest Hatası: '
+                        + error.message;
+                });
+            }
+
 
             // --- GRAFİK ÇİZİM MANTIĞI ---
             function loadChartData() {

@@ -213,3 +213,24 @@ def test_backtest_rejects_invalid_capital(client):
     )
 
     assert response.status_code == 400
+
+
+
+def test_frontend_contains_backtest_dashboard(
+    client,
+):
+    response = client.get("/")
+
+    assert response.status_code == 200
+
+    html = response.text
+
+    assert 'id="metric-strategy-return"' in html
+    assert 'id="metric-buy-hold"' in html
+    assert 'id="metric-drawdown"' in html
+    assert 'id="metric-win-rate"' in html
+    assert 'id="metric-final-value"' in html
+    assert 'id="metric-trades"' in html
+    assert 'id="equity-chart-container"' in html
+    assert "loadBacktestData()" in html
+    assert "/api/backtest" in html
