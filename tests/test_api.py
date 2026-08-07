@@ -238,6 +238,14 @@ def test_frontend_contains_backtest_dashboard(
     assert 'id="transaction-fee"' in html
     assert 'id="slippage"' in html
     assert 'id="equity-chart-container"' in html
+    assert 'id="optimizer-objective"' in html
+    assert 'id="optimizer-best-pair"' in html
+    assert 'id="optimizer-return"' in html
+    assert 'id="optimizer-sharpe"' in html
+    assert 'id="optimizer-drawdown"' in html
+    assert 'id="optimizer-results-body"' in html
+    assert "loadOptimizerData()" in html
+    assert "/api/optimize" in html
     assert "loadBacktestData()" in html
     assert "/api/backtest" in html
 
@@ -282,3 +290,69 @@ def test_backtest_accepts_market_costs(
     assert "sharpe_ratio" in summary
     assert "excess_return_pct" in summary
     assert "total_fees_paid" in summary
+
+
+def test_optimizer_requires_authentication(client):
+    response = client.get("/api/optimize")
+
+    assert response.status_code == 401
+
+
+def test_authenticated_user_can_optimize_strategy(client):
+    login_response = login(
+        client,
+        os.environ["USER_USERNAME"],
+        os.environ["USER_PASSWORD"],
+    )
+
+    response = client.get(
+        (
+            "/api/optimize"
+            "?objective=sharpe_ratio"
+            "&top_n=5"
+            "&initial_capital=10000"
+            "&transaction_fee_pct=0.10"
+            "&slippage_pct=0.05"
+        ),
+        headers=auth_header(
+            login_response["access_token"]
+        ),
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["strategy_family"] == "SMA Crossover"
+    assert body["requested_by_role"] == "user"
+    assert body["objective"] == "sharpe_ratio"
+
+    assert body["tested_combinations"] > 0
+    assert len(body["top_results"]) == 5
+
+    assert (
+        body["best"]
+        == body["top_results"][0]
+    )
+
+    assert (
+        body["best"]["short_window"]
+        < body["best"]["long_window"]
+    )
+
+
+def test_optimizer_rejects_invalid_objective(client):
+    login_response = login(
+        client,
+        os.environ["USER_USERNAME"],
+        os.environ["USER_PASSWORD"],
+    )
+
+    response = client.get(
+        "/api/optimize?objective=magic_metric",
+        headers=auth_header(
+            login_response["access_token"]
+        ),
+    )
+
+    assert response.status_code == 400

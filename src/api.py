@@ -21,6 +21,7 @@ from src.database import (
 )
 
 from src.backtest import run_backtest
+from src.optimizer import optimize_sma_strategy
 
 # --- UYGULAMA VE GÜVENLİK AYARLARI ---
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -288,6 +289,79 @@ def get_backtest_results(
     }
 
 
+# Strategy Optimizer
+@app.get("/api/optimize")
+def optimize_strategy(
+    objective: str = "sharpe_ratio",
+    top_n: int = 5,
+    initial_capital: float = 10_000.0,
+    transaction_fee_pct: float = 0.10,
+    slippage_pct: float = 0.05,
+    current_user: User = Depends(get_current_user),
+):
+    allowed_objectives = {
+        "sharpe_ratio",
+        "total_return_pct",
+        "excess_return_pct",
+    }
+
+    if objective not in allowed_objectives:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Geçersiz optimizasyon metriği.",
+        )
+
+    if not 1 <= top_n <= 20:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="top_n 1 ile 20 arasında olmalıdır.",
+        )
+
+    if initial_capital <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Başlangıç sermayesi sıfırdan büyük olmalıdır.",
+        )
+
+    try:
+        result = optimize_sma_strategy(
+            initial_capital=initial_capital,
+            transaction_fee_pct=transaction_fee_pct,
+            slippage_pct=slippage_pct,
+            objective=objective,
+            top_n=top_n,
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Market verisi bulunamadı.",
+        ) from error
+
+    except Exception as error:
+        print(
+            "Optimizer hatası: "
+            f"{type(error).__name__}"
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Strateji optimizasyonu tamamlanamadı.",
+        ) from error
+
+    return {
+        "strategy_family": "SMA Crossover",
+        "requested_by_role": current_user.role,
+        **result,
+    }
+
+
 # 3. Ön Yüz (Frontend)
 @app.get("/", response_class=HTMLResponse)
 def read_root():
@@ -442,6 +516,69 @@ def read_root():
             }
 
             #backtest-error {
+                color: #FF5252;
+                margin-top: 10px;
+                font-weight: bold;
+            }
+
+            .optimizer-toolbar {
+                display: flex;
+                gap: 12px;
+                align-items: end;
+                flex-wrap: wrap;
+                margin-bottom: 16px;
+            }
+
+            .optimizer-toolbar select {
+                min-width: 190px;
+                padding: 10px 12px;
+                background: #1E222D;
+                color: #fff;
+                border: 1px solid #434651;
+                border-radius: 6px;
+                outline: none;
+            }
+
+            .optimizer-table-wrapper {
+                overflow-x: auto;
+                margin-top: 18px;
+                border: 1px solid #2B2B43;
+                border-radius: 10px;
+            }
+
+            .optimizer-table {
+                width: 100%;
+                border-collapse: collapse;
+                background: #1E222D;
+            }
+
+            .optimizer-table th,
+            .optimizer-table td {
+                padding: 13px 15px;
+                text-align: right;
+                border-bottom: 1px solid #2B2B43;
+                color: #d1d4dc;
+            }
+
+            .optimizer-table th {
+                color: #8a919e;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .optimizer-table th:nth-child(1),
+            .optimizer-table th:nth-child(2),
+            .optimizer-table td:nth-child(1),
+            .optimizer-table td:nth-child(2) {
+                text-align: left;
+            }
+
+            .optimizer-table tbody tr:last-child td {
+                border-bottom: none;
+            }
+
+            #optimizer-error {
                 color: #FF5252;
                 margin-top: 10px;
                 font-weight: bold;
@@ -660,6 +797,133 @@ def read_root():
             <div id="equity-chart-container"></div>
 
             <div id="backtest-error"></div>
+
+            <h2 class="section-title">
+                Strategy Optimizer
+            </h2>
+
+            <div class="optimizer-toolbar">
+                <div class="backtest-control">
+                    <label for="optimizer-objective">
+                        Optimization Objective
+                    </label>
+
+                    <select id="optimizer-objective">
+                        <option value="sharpe_ratio">
+                            Sharpe Ratio
+                        </option>
+
+                        <option value="total_return_pct">
+                            Total Return
+                        </option>
+
+                        <option value="excess_return_pct">
+                            Excess Return
+                        </option>
+                    </select>
+                </div>
+
+                <button
+                    class="btn-backtest"
+                    onclick="loadOptimizerData()"
+                >
+                    Optimize Strategy
+                </button>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Best SMA Pair
+                    </div>
+                    <div
+                        id="optimizer-best-pair"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Optimized Return
+                    </div>
+                    <div
+                        id="optimizer-return"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Optimized Sharpe
+                    </div>
+                    <div
+                        id="optimizer-sharpe"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Optimized Drawdown
+                    </div>
+                    <div
+                        id="optimizer-drawdown"
+                        class="metric-value metric-negative"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Excess Return
+                    </div>
+                    <div
+                        id="optimizer-excess"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Combinations Tested
+                    </div>
+                    <div
+                        id="optimizer-count"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+            </div>
+
+            <div class="optimizer-table-wrapper">
+                <table class="optimizer-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>SMA Pair</th>
+                            <th>Return</th>
+                            <th>Sharpe</th>
+                            <th>Drawdown</th>
+                            <th>Trades</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="optimizer-results-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="optimizer-error"></div>
         </div>
 
         <script>
@@ -1098,6 +1362,217 @@ def read_root():
                 .catch(error => {
                     errorBox.innerText =
                         'Backtest Hatası: '
+                        + error.message;
+                });
+            }
+
+
+            // --- STRATEGY OPTIMIZER ---
+
+            function loadOptimizerData() {
+                const token =
+                    localStorage.getItem('quant_token');
+
+                const objective =
+                    document.getElementById(
+                        'optimizer-objective'
+                    ).value;
+
+                const initialCapital =
+                    Number(
+                        document.getElementById(
+                            'initial-capital'
+                        ).value
+                    );
+
+                const transactionFee =
+                    Number(
+                        document.getElementById(
+                            'transaction-fee'
+                        ).value
+                    );
+
+                const slippage =
+                    Number(
+                        document.getElementById(
+                            'slippage'
+                        ).value
+                    );
+
+                const errorBox =
+                    document.getElementById(
+                        'optimizer-error'
+                    );
+
+                errorBox.innerText = '';
+
+                const params =
+                    new URLSearchParams({
+                        objective: objective,
+                        top_n: '5',
+                        initial_capital:
+                            String(initialCapital),
+                        transaction_fee_pct:
+                            String(transactionFee),
+                        slippage_pct:
+                            String(slippage)
+                    });
+
+                fetch(
+                    '/api/optimize?' + params.toString(),
+                    {
+                        headers: {
+                            'Authorization':
+                                'Bearer ' + token
+                        }
+                    }
+                )
+                .then(response => {
+                    if (response.status === 401) {
+                        logout();
+
+                        throw new Error(
+                            'Oturum süresi doldu.'
+                        );
+                    }
+
+                    if (!response.ok) {
+                        return response.json()
+                            .then(body => {
+                                throw new Error(
+                                    body.detail
+                                    || 'Optimizer API hatası'
+                                );
+                            });
+                    }
+
+                    return response.json();
+                })
+                .then(data => {
+                    const best = data.best;
+
+                    document.getElementById(
+                        'optimizer-best-pair'
+                    ).innerText =
+                        'SMA'
+                        + best.short_window
+                        + ' / SMA'
+                        + best.long_window;
+
+
+                    const optimizedReturn =
+                        document.getElementById(
+                            'optimizer-return'
+                        );
+
+                    optimizedReturn.innerText =
+                        formatPercent(
+                            best.total_return_pct
+                        );
+
+                    setMetricTrend(
+                        'optimizer-return',
+                        best.total_return_pct
+                    );
+
+
+                    const optimizedSharpe =
+                        document.getElementById(
+                            'optimizer-sharpe'
+                        );
+
+                    optimizedSharpe.innerText =
+                        Number(
+                            best.sharpe_ratio
+                        ).toFixed(3);
+
+                    setMetricTrend(
+                        'optimizer-sharpe',
+                        best.sharpe_ratio
+                    );
+
+
+                    document.getElementById(
+                        'optimizer-drawdown'
+                    ).innerText =
+                        '-'
+                        + Number(
+                            best.max_drawdown_pct
+                        ).toFixed(2)
+                        + '%';
+
+
+                    const excess =
+                        document.getElementById(
+                            'optimizer-excess'
+                        );
+
+                    excess.innerText =
+                        formatPercent(
+                            best.excess_return_pct
+                        );
+
+                    setMetricTrend(
+                        'optimizer-excess',
+                        best.excess_return_pct
+                    );
+
+
+                    document.getElementById(
+                        'optimizer-count'
+                    ).innerText =
+                        data.tested_combinations;
+
+
+                    const tbody =
+                        document.getElementById(
+                            'optimizer-results-body'
+                        );
+
+                    tbody.innerHTML = '';
+
+                    data.top_results.forEach(
+                        (row, index) => {
+                            const tr =
+                                document.createElement(
+                                    'tr'
+                                );
+
+                            tr.innerHTML =
+                                '<td>'
+                                + (index + 1)
+                                + '</td>'
+                                + '<td>SMA'
+                                + row.short_window
+                                + ' / SMA'
+                                + row.long_window
+                                + '</td>'
+                                + '<td>'
+                                + formatPercent(
+                                    row.total_return_pct
+                                )
+                                + '</td>'
+                                + '<td>'
+                                + Number(
+                                    row.sharpe_ratio
+                                ).toFixed(3)
+                                + '</td>'
+                                + '<td>-'
+                                + Number(
+                                    row.max_drawdown_pct
+                                ).toFixed(2)
+                                + '%</td>'
+                                + '<td>'
+                                + row.closed_trades
+                                + '</td>';
+
+                            tbody.appendChild(tr);
+                        }
+                    );
+                })
+                .catch(error => {
+                    errorBox.innerText =
+                        'Optimizer Hatası: '
                         + error.message;
                 });
             }
