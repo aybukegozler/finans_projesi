@@ -228,6 +228,8 @@ def get_market_data(current_user: User = Depends(get_current_user)):
 @app.get("/api/backtest")
 def get_backtest_results(
     initial_capital: float = 10_000.0,
+    transaction_fee_pct: float = 0.10,
+    slippage_pct: float = 0.05,
     current_user: User = Depends(get_current_user),
 ):
     if initial_capital <= 0:
@@ -252,6 +254,8 @@ def get_backtest_results(
         result = run_backtest(
             signals_path=SIGNALS_PATH,
             initial_capital=initial_capital,
+            transaction_fee_pct=transaction_fee_pct,
+            slippage_pct=slippage_pct,
         )
 
     except ValueError as error:
@@ -491,6 +495,36 @@ def read_root():
                     >
                 </div>
 
+                <div class="backtest-control">
+                    <label for="transaction-fee">
+                        Transaction Fee (%)
+                    </label>
+
+                    <input
+                        type="number"
+                        id="transaction-fee"
+                        value="0.10"
+                        min="0"
+                        max="5"
+                        step="0.01"
+                    >
+                </div>
+
+                <div class="backtest-control">
+                    <label for="slippage">
+                        Slippage (%)
+                    </label>
+
+                    <input
+                        type="number"
+                        id="slippage"
+                        value="0.05"
+                        min="0"
+                        max="5"
+                        step="0.01"
+                    >
+                </div>
+
                 <button
                     class="btn-backtest"
                     onclick="loadBacktestData()"
@@ -567,6 +601,54 @@ def read_root():
                     <div
                         id="metric-trades"
                         class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Excess Return
+                    </div>
+                    <div
+                        id="metric-excess-return"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Sharpe Ratio
+                    </div>
+                    <div
+                        id="metric-sharpe"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Annual Volatility
+                    </div>
+                    <div
+                        id="metric-volatility"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Total Fees
+                    </div>
+                    <div
+                        id="metric-total-fees"
+                        class="metric-value metric-negative"
                     >
                         --
                     </div>
@@ -693,6 +775,20 @@ def read_root():
                 const initialCapital =
                     Number(capitalInput.value);
 
+                const transactionFee =
+                    Number(
+                        document.getElementById(
+                            'transaction-fee'
+                        ).value
+                    );
+
+                const slippage =
+                    Number(
+                        document.getElementById(
+                            'slippage'
+                        ).value
+                    );
+
                 const errorBox =
                     document.getElementById(
                         'backtest-error'
@@ -711,10 +807,42 @@ def read_root():
                     return;
                 }
 
+                if (
+                    !Number.isFinite(transactionFee)
+                    || transactionFee < 0
+                    || transactionFee > 5
+                ) {
+                    errorBox.innerText =
+                        'Transaction fee 0 ile 5 '
+                        + 'arasında olmalıdır.';
+
+                    return;
+                }
+
+                if (
+                    !Number.isFinite(slippage)
+                    || slippage < 0
+                    || slippage > 5
+                ) {
+                    errorBox.innerText =
+                        'Slippage 0 ile 5 '
+                        + 'arasında olmalıdır.';
+
+                    return;
+                }
+
                 const url =
                     '/api/backtest?initial_capital='
                     + encodeURIComponent(
                         initialCapital
+                    )
+                    + '&transaction_fee_pct='
+                    + encodeURIComponent(
+                        transactionFee
+                    )
+                    + '&slippage_pct='
+                    + encodeURIComponent(
+                        slippage
                     )
                     + '&v='
                     + new Date().getTime();
@@ -818,6 +946,56 @@ def read_root():
                         summary.closed_trades;
 
 
+                    const excessReturn =
+                        document.getElementById(
+                            'metric-excess-return'
+                        );
+
+                    excessReturn.innerText =
+                        formatPercent(
+                            summary.excess_return_pct
+                        );
+
+                    setMetricTrend(
+                        'metric-excess-return',
+                        summary.excess_return_pct
+                    );
+
+
+                    const sharpe =
+                        document.getElementById(
+                            'metric-sharpe'
+                        );
+
+                    sharpe.innerText =
+                        Number(
+                            summary.sharpe_ratio
+                        ).toFixed(3);
+
+                    setMetricTrend(
+                        'metric-sharpe',
+                        summary.sharpe_ratio
+                    );
+
+
+                    document.getElementById(
+                        'metric-volatility'
+                    ).innerText =
+                        Number(
+                            summary
+                            .annualized_volatility_pct
+                        ).toFixed(2)
+                        + '%';
+
+
+                    document.getElementById(
+                        'metric-total-fees'
+                    ).innerText =
+                        formatCurrency(
+                            summary.total_fees_paid
+                        );
+
+
                     document.getElementById(
                         'backtest-meta'
                     ).innerText =
@@ -829,7 +1007,17 @@ def read_root():
                         + ' | Wins: '
                         + summary.winning_trades
                         + ' | Losses: '
-                        + summary.losing_trades;
+                        + summary.losing_trades
+                        + ' | Fee: '
+                        + Number(
+                            summary.transaction_fee_pct
+                        ).toFixed(2)
+                        + '%'
+                        + ' | Slippage: '
+                        + Number(
+                            summary.slippage_pct
+                        ).toFixed(2)
+                        + '%';
 
 
                     const container =

@@ -231,6 +231,54 @@ def test_frontend_contains_backtest_dashboard(
     assert 'id="metric-win-rate"' in html
     assert 'id="metric-final-value"' in html
     assert 'id="metric-trades"' in html
+    assert 'id="metric-excess-return"' in html
+    assert 'id="metric-sharpe"' in html
+    assert 'id="metric-volatility"' in html
+    assert 'id="metric-total-fees"' in html
+    assert 'id="transaction-fee"' in html
+    assert 'id="slippage"' in html
     assert 'id="equity-chart-container"' in html
     assert "loadBacktestData()" in html
     assert "/api/backtest" in html
+
+
+def test_backtest_accepts_market_costs(
+    client,
+):
+    login_response = login(
+        client,
+        os.environ["USER_USERNAME"],
+        os.environ["USER_PASSWORD"],
+    )
+
+    response = client.get(
+        (
+            "/api/backtest"
+            "?initial_capital=10000"
+            "&transaction_fee_pct=0.10"
+            "&slippage_pct=0.05"
+        ),
+        headers=auth_header(
+            login_response["access_token"]
+        ),
+    )
+
+    assert response.status_code == 200
+
+    summary = (
+        response.json()["summary"]
+    )
+
+    assert (
+        summary["transaction_fee_pct"]
+        == 0.10
+    )
+
+    assert (
+        summary["slippage_pct"]
+        == 0.05
+    )
+
+    assert "sharpe_ratio" in summary
+    assert "excess_return_pct" in summary
+    assert "total_fees_paid" in summary
