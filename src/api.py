@@ -12,7 +12,13 @@ from pathlib import Path
 import bcrypt
 
 # Oluşturduğumuz veritabanı modülünü içe aktarıyoruz
-from src.database import SessionLocal, User, create_initial_users
+from src.database import (
+    SessionLocal,
+    User,
+    check_database_connection,
+    create_initial_users,
+    get_database_backend,
+)
 
 # --- UYGULAMA VE GÜVENLİK AYARLARI ---
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -40,6 +46,10 @@ async def lifespan(_: FastAPI):
     print(
         f"Hazırlanan environment kullanıcısı: "
         f"{prepared_users}"
+    )
+
+    print(
+        f"Database backend: {get_database_backend()}"
     )
 
     yield
@@ -94,10 +104,33 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 
 @app.get("/health")
 def health_check():
+    engine_exists = ENGINE_PATH.exists()
+    signals_exists = SIGNALS_PATH.exists()
+    database_connected = check_database_connection()
+
+    checks = {
+        "engine_exists": engine_exists,
+        "signals_exists": signals_exists,
+        "database_connected": database_connected,
+        "database_backend": get_database_backend(),
+    }
+
+    if not (
+        engine_exists
+        and signals_exists
+        and database_connected
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "status": "degraded",
+                **checks,
+            },
+        )
+
     return {
         "status": "ok",
-        "engine_exists": ENGINE_PATH.exists(),
-        "signals_exists": SIGNALS_PATH.exists(),
+        **checks,
     }
 
 

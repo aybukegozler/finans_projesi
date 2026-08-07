@@ -9,7 +9,7 @@ services:
     startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT
 
     healthCheckPath: /health
-    autoDeployTrigger: commit
+    autoDeployTrigger: checksPass
 
     envVars:
       - key: SECRET_KEY
@@ -17,6 +17,9 @@ services:
 
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "60"
+
+      - key: DATABASE_URL
+        sync: false
 
       - key: ADMIN_USERNAME
         sync: false

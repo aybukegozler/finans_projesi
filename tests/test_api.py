@@ -75,6 +75,8 @@ def test_health_endpoint(client):
     assert body["status"] == "ok"
     assert body["engine_exists"] is True
     assert body["signals_exists"] is True
+    assert body["database_connected"] is True
+    assert body["database_backend"] == "sqlite"
 
 
 def test_api_requires_authentication(client):

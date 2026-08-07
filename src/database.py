@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 import bcrypt
-from sqlalchemy import Column, Integer, String, create_engine
+from sqlalchemy import Column, Integer, String, create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 
@@ -53,6 +53,29 @@ class User(Base):
 
 
 Base.metadata.create_all(bind=engine)
+
+
+def get_database_backend() -> str:
+    """Aktif SQLAlchemy veritabanı backend adını döndürür."""
+    return engine.url.get_backend_name()
+
+
+def check_database_connection() -> bool:
+    """Veritabanına basit bir SELECT 1 sorgusu gönderir."""
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+
+        return True
+
+    except Exception as error:
+        # Connection string veya parola gibi hassas bilgileri loglamıyoruz.
+        print(
+            "Database health check failed: "
+            f"{type(error).__name__}"
+        )
+
+        return False
 
 
 def get_password_hash(password: str) -> str:

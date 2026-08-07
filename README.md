@@ -112,7 +112,7 @@ flowchart LR
     API["FastAPI Backend"]
     Auth["JWT Authentication"]
     RBAC{"RBAC Check"}
-    DB[("SQLAlchemy / SQLite")]
+    DB[("SQLAlchemy / Neon PostgreSQL")]
     Engine["C++17 Quant Engine"]
     Input["market_data.csv"]
     Output["signals.csv"]
@@ -229,6 +229,8 @@ Example health response:
 - Uvicorn
 - Pandas
 - SQLAlchemy
+- Neon PostgreSQL
+- psycopg 3
 - python-jose
 - bcrypt
 
@@ -407,7 +409,6 @@ Recommended future production hardening:
 
 - Store tokens in Secure, HttpOnly cookies instead of browser local storage
 - Add login rate limiting
-- Use a persistent PostgreSQL database
 - Add refresh-token rotation
 - Add audit logging
 - Configure security headers
@@ -420,7 +421,7 @@ Recommended future production hardening:
 - The current strategy is based only on SMA20/SMA50 crossovers.
 - It does not include transaction fees, slippage or position sizing.
 - The included market dataset is static.
-- SQLite is used by default.
+- Local development falls back to SQLite; production uses Neon PostgreSQL.
 - The dashboard is a technical demonstration, not a brokerage platform.
 - The strategy output must not be treated as financial advice.
 
@@ -432,10 +433,10 @@ Recommended future production hardening:
 - [ ] Live market-data ingestion
 - [ ] Strategy backtesting module
 - [ ] Profit/loss and risk metrics
-- [ ] PostgreSQL production database
+- [x] PostgreSQL production database
 - [ ] Secure HttpOnly cookie authentication
-- [ ] Automated test suite
-- [ ] GitHub Actions CI pipeline
+- [x] Automated test suite
+- [x] GitHub Actions CI pipeline
 - [ ] Docker support
 - [ ] Admin audit records
 
