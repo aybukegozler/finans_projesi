@@ -25,6 +25,7 @@ from src.optimizer import optimize_sma_strategy
 from src.walk_forward import walk_forward_validate
 from fastapi import WebSocket as FastAPIWebSocket, WebSocketDisconnect as FastAPIWebSocketDisconnect
 from src.trade_analytics import analyze_trades
+from src.live_signal import LiveSMAEngine
 from src.binance_market import (
     get_klines,
     normalize_symbol,
@@ -575,6 +576,9 @@ async def market_websocket(
     symbol: str,
     interval: str = "1m",
 ):
+    import asyncio
+    import time
+
     await websocket.accept()
 
     try:
@@ -600,12 +604,79 @@ async def market_websocket(
 
         return
 
+    engine = LiveSMAEngine(
+        short_window=20,
+        long_window=50,
+        max_points=250,
+    )
+
+    try:
+        historical_candles = (
+            await asyncio.to_thread(
+                get_klines,
+                normalized_symbol,
+                validated_interval,
+                100,
+            )
+        )
+
+        now_ms = int(
+            time.time() * 1000
+        )
+
+        seed_candles = [
+            {
+                "open_time_ms":
+                    candle["open_time_ms"],
+
+                "close":
+                    candle["close"],
+
+                "closed":
+                    candle[
+                        "close_time_ms"
+                    ] <= now_ms,
+            }
+            for candle
+            in historical_candles
+        ]
+
+        indicator_snapshot = (
+            engine.seed(
+                seed_candles
+            )
+        )
+
+    except Exception as error:
+        print(
+            "Live SMA seed hatası:",
+            type(error).__name__,
+        )
+
+        await websocket.send_json(
+            {
+                "type": "error",
+                "detail": (
+                    "Canlı SMA başlangıç "
+                    "verisi hazırlanamadı."
+                ),
+            }
+        )
+
+        await websocket.close(
+            code=1011
+        )
+
+        return
+
     await websocket.send_json(
         {
             "type": "connected",
             "source": "Binance Spot",
             "symbol": normalized_symbol,
             "interval": validated_interval,
+            "indicators":
+                indicator_snapshot,
         }
     )
 
@@ -614,10 +685,18 @@ async def market_websocket(
             symbol=normalized_symbol,
             interval=validated_interval,
         ):
+            indicators = (
+                engine.update(
+                    kline
+                )
+            )
+
             await websocket.send_json(
                 {
                     "type": "kline",
                     "data": kline,
+                    "indicators":
+                        indicators,
                 }
             )
 
@@ -1113,6 +1192,92 @@ def read_root():
                         class="metric-value metric-neutral"
                     >
                         --
+                    </div>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">
+                        SMA20
+                    </div>
+                    <div
+                        id="live-sma20"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        SMA50
+                    </div>
+                    <div
+                        id="live-sma50"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Live Signal
+                    </div>
+                    <div
+                        id="live-signal"
+                        class="metric-value metric-neutral"
+                    >
+                        HOLD
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Trend
+                    </div>
+                    <div
+                        id="live-trend"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        SMA Spread
+                    </div>
+                    <div
+                        id="live-sma-spread"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Current Crossover
+                    </div>
+                    <div
+                        id="live-crossover"
+                        class="metric-value metric-neutral"
+                    >
+                        NONE
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Last Confirmed Crossover
+                    </div>
+                    <div
+                        id="live-last-crossover"
+                        class="metric-value metric-neutral"
+                    >
+                        NONE
                     </div>
                 </div>
             </div>
@@ -3032,6 +3197,8 @@ def read_root():
             let liveMarketSocket = null;
             let liveMarketChart = null;
             let liveCandlestickSeries = null;
+            let liveSma20Series = null;
+            let liveSma50Series = null;
             let liveLastClose = null;
 
 
@@ -3137,6 +3304,26 @@ def read_root():
                     liveMarketChart
                     .addCandlestickSeries();
 
+                liveSma20Series =
+                    liveMarketChart.addLineSeries(
+                        {
+                            color: '#ff9800',
+                            lineWidth: 2,
+                            priceLineVisible: false,
+                            lastValueVisible: true
+                        }
+                    );
+
+                liveSma50Series =
+                    liveMarketChart.addLineSeries(
+                        {
+                            color: '#29b6f6',
+                            lineWidth: 2,
+                            priceLineVisible: false,
+                            lastValueVisible: true
+                        }
+                    );
+
                 window.addEventListener(
                     'resize',
                     () => {
@@ -3153,6 +3340,46 @@ def read_root():
                         }
                     }
                 );
+            }
+
+
+            function calculateSmaSeries(
+                candles,
+                windowSize
+            ) {
+                const result = [];
+                let rollingSum = 0;
+
+                candles.forEach(
+                    (candle, index) => {
+                        rollingSum += candle.close;
+
+                        if (index >= windowSize) {
+                            rollingSum -=
+                                candles[
+                                    index - windowSize
+                                ].close;
+                        }
+
+                        if (
+                            index
+                            >= windowSize - 1
+                        ) {
+                            result.push(
+                                {
+                                    time:
+                                        candle.time,
+
+                                    value:
+                                        rollingSum
+                                        / windowSize
+                                }
+                            );
+                        }
+                    }
+                );
+
+                return result;
             }
 
 
@@ -3232,6 +3459,20 @@ def read_root():
                     candles
                 );
 
+                liveSma20Series.setData(
+                    calculateSmaSeries(
+                        candles,
+                        20
+                    )
+                );
+
+                liveSma50Series.setData(
+                    calculateSmaSeries(
+                        candles,
+                        50
+                    )
+                );
+
                 if (candles.length > 0) {
                     const last =
                         candles[
@@ -3273,6 +3514,197 @@ def read_root():
                 liveMarketChart
                     .timeScale()
                     .fitContent();
+            }
+
+
+            function updateLiveIndicators(
+                indicators,
+                candleTime = null
+            ) {
+                if (
+                    !indicators
+                    || !indicators.ready
+                ) {
+                    return;
+                }
+
+                document.getElementById(
+                    'live-sma20'
+                ).innerText =
+                    formatMarketPrice(
+                        indicators.sma_short
+                    );
+
+                document.getElementById(
+                    'live-sma50'
+                ).innerText =
+                    formatMarketPrice(
+                        indicators.sma_long
+                    );
+
+
+                const signal =
+                    document.getElementById(
+                        'live-signal'
+                    );
+
+                signal.innerText =
+                    indicators.signal;
+
+                signal.className =
+                    'metric-value '
+                    + (
+                        indicators.signal
+                        === 'BUY'
+                        ? 'metric-positive'
+                        : (
+                            indicators.signal
+                            === 'SELL'
+                            ? 'metric-negative'
+                            : 'metric-neutral'
+                        )
+                    );
+
+
+                const trend =
+                    document.getElementById(
+                        'live-trend'
+                    );
+
+                trend.innerText =
+                    indicators.trend;
+
+                trend.className =
+                    'metric-value '
+                    + (
+                        indicators.trend
+                        === 'BULLISH'
+                        ? 'metric-positive'
+                        : (
+                            indicators.trend
+                            === 'BEARISH'
+                            ? 'metric-negative'
+                            : 'metric-neutral'
+                        )
+                    );
+
+
+                const spread =
+                    Number(
+                        indicators.spread_pct
+                    );
+
+                document.getElementById(
+                    'live-sma-spread'
+                ).innerText =
+                    (
+                        spread >= 0
+                        ? '+'
+                        : ''
+                    )
+                    + spread.toFixed(4)
+                    + '%';
+
+                setMetricTrend(
+                    'live-sma-spread',
+                    spread
+                );
+
+
+                const crossover =
+                    document.getElementById(
+                        'live-crossover'
+                    );
+
+                if (
+                    indicators.crossover
+                    === 'HOLD'
+                ) {
+                    crossover.innerText =
+                        'NONE';
+
+                    crossover.className =
+                        'metric-value metric-neutral';
+
+                } else {
+                    crossover.innerText =
+                        indicators.crossover
+                        + (
+                            indicators.candle_closed
+                            ? ' ✓'
+                            : ' LIVE'
+                        );
+
+                    crossover.className =
+                        'metric-value '
+                        + (
+                            indicators.crossover
+                            === 'BUY'
+                            ? 'metric-positive'
+                            : 'metric-negative'
+                        );
+                }
+
+
+                const last =
+                    indicators.last_crossover;
+
+                const lastElement =
+                    document.getElementById(
+                        'live-last-crossover'
+                    );
+
+                if (last) {
+                    lastElement.innerText =
+                        last.signal
+                        + ' · '
+                        + new Date(
+                            last.time
+                        ).toLocaleString();
+
+                    lastElement.className =
+                        'metric-value '
+                        + (
+                            last.signal
+                            === 'BUY'
+                            ? 'metric-positive'
+                            : 'metric-negative'
+                        );
+
+                } else {
+                    lastElement.innerText =
+                        'NONE';
+
+                    lastElement.className =
+                        'metric-value metric-neutral';
+                }
+
+
+                if (
+                    candleTime !== null
+                    && indicators.sma_short !== null
+                    && indicators.sma_long !== null
+                ) {
+                    liveSma20Series.update(
+                        {
+                            time: candleTime,
+                            value:
+                                Number(
+                                    indicators.sma_short
+                                )
+                        }
+                    );
+
+                    liveSma50Series.update(
+                        {
+                            time: candleTime,
+                            value:
+                                Number(
+                                    indicators.sma_long
+                                )
+                        }
+                    );
+                }
             }
 
 
@@ -3336,6 +3768,10 @@ def read_root():
                                 '● LIVE'
                             );
 
+                            updateLiveIndicators(
+                                message.indicators
+                            );
+
                             return;
                         }
 
@@ -3366,13 +3802,15 @@ def read_root():
                                 candle.close
                             );
 
+                        const candleTime =
+                            Math.floor(
+                                candle.open_time_ms
+                                / 1000
+                            );
+
                         liveCandlestickSeries.update(
                             {
-                                time:
-                                    Math.floor(
-                                        candle.open_time_ms
-                                        / 1000
-                                    ),
+                                time: candleTime,
 
                                 open:
                                     Number(
@@ -3391,6 +3829,11 @@ def read_root():
 
                                 close: close
                             }
+                        );
+
+                        updateLiveIndicators(
+                            message.indicators,
+                            candleTime
                         );
 
                         const priceElement =

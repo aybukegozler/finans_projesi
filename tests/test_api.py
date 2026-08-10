@@ -266,6 +266,13 @@ def test_frontend_contains_backtest_dashboard(
     assert 'id="live-market-status"' in html
     assert 'id="live-price"' in html
     assert 'id="live-market-chart"' in html
+    assert 'id="live-sma20"' in html
+    assert 'id="live-sma50"' in html
+    assert 'id="live-signal"' in html
+    assert 'id="live-trend"' in html
+    assert 'id="live-sma-spread"' in html
+    assert 'id="live-crossover"' in html
+    assert 'id="live-last-crossover"' in html
     assert "startLiveMarket()" in html
     assert "/api/market/klines" in html
     assert "/ws/market/" in html
@@ -758,6 +765,55 @@ def test_live_market_websocket(
     client,
     monkeypatch,
 ):
+    def fake_get_klines(
+        symbol,
+        interval,
+        limit,
+    ):
+        assert symbol == "BTCUSDT"
+        assert interval == "1m"
+        assert limit == 100
+
+        base_time = 1786338000000
+
+        return [
+            {
+                "open_time":
+                    "2026-08-10T00:00:00+00:00",
+
+                "open_time_ms":
+                    base_time
+                    + index * 60_000,
+
+                "open":
+                    100.0,
+
+                "high":
+                    100.0,
+
+                "low":
+                    100.0,
+
+                "close":
+                    100.0,
+
+                "volume":
+                    1.0,
+
+                "close_time_ms":
+                    base_time
+                    + index * 60_000
+                    + 59_999,
+
+                "quote_volume":
+                    100.0,
+
+                "trade_count":
+                    1,
+            }
+            for index in range(60)
+        ]
+
     async def fake_stream_klines(
         symbol,
         interval,
@@ -768,12 +824,20 @@ def test_live_market_websocket(
         yield {
             "event": "kline",
             "symbol": "BTCUSDT",
-            "event_time_ms": 1786341601000,
+            "event_time_ms":
+                1786341601000,
+
             "event_time":
                 "2026-08-10T06:00:01+00:00",
+
             "interval": "1m",
-            "open_time_ms": 1786341600000,
-            "close_time_ms": 1786341659999,
+
+            "open_time_ms":
+                1786341600000,
+
+            "close_time_ms":
+                1786341659999,
+
             "open": 100.0,
             "high": 110.0,
             "low": 95.0,
@@ -783,6 +847,11 @@ def test_live_market_websocket(
             "trade_count": 42,
             "closed": False,
         }
+
+    monkeypatch.setattr(
+        "src.api.get_klines",
+        fake_get_klines,
+    )
 
     monkeypatch.setattr(
         "src.api.stream_klines",
@@ -806,6 +875,13 @@ def test_live_market_websocket(
             == "BTCUSDT"
         )
 
+        assert (
+            connected["indicators"][
+                "ready"
+            ]
+            is True
+        )
+
         message = (
             websocket.receive_json()
         )
@@ -821,6 +897,29 @@ def test_live_market_websocket(
         )
 
         assert (
-            message["data"]["trade_count"]
+            message["data"][
+                "trade_count"
+            ]
             == 42
+        )
+
+        assert (
+            message["indicators"][
+                "signal"
+            ]
+            == "BUY"
+        )
+
+        assert (
+            message["indicators"][
+                "crossover"
+            ]
+            == "BUY"
+        )
+
+        assert (
+            message["indicators"][
+                "last_crossover"
+            ]
+            is None
         )
