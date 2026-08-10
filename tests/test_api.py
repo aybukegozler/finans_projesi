@@ -287,6 +287,12 @@ def test_frontend_contains_backtest_dashboard(
     assert "setMarkers" in html
     assert "arrowUp" in html
     assert "arrowDown" in html
+    assert 'id="live-signal-history"' in html
+    assert 'id="live-signal-toast"' in html
+    assert "renderLiveSignalHistory" in html
+    assert "recordConfirmedCrossover" in html
+    assert "showLiveSignalToast" in html
+    assert "clearLiveSignalHistory" in html
     assert "priceScaleId: 'volume'" in html
     assert "/api/market/ticker/24h" in html
     assert "startLiveMarket()" in html

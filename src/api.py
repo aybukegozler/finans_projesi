@@ -1049,6 +1049,169 @@ def read_root():
                 font-weight: bold;
             }
 
+            .signal-alert-section {
+                margin-top: 24px;
+                margin-bottom: 28px;
+                padding: 22px;
+                background: #1E222D;
+                border: 1px solid #2B2B43;
+                border-radius: 12px;
+            }
+
+            .signal-alert-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+                flex-wrap: wrap;
+                margin-bottom: 16px;
+            }
+
+            .signal-alert-header .section-title {
+                margin-top: 0;
+                margin-bottom: 5px;
+            }
+
+            .signal-alert-description {
+                color: #8a919e;
+                font-size: 13px;
+            }
+
+            .btn-secondary {
+                padding: 9px 14px;
+                border-radius: 7px;
+                border: 1px solid #434651;
+                background: #252936;
+                color: #d1d4dc;
+                cursor: pointer;
+                font-weight: 700;
+            }
+
+            .btn-secondary:hover {
+                background: #303543;
+            }
+
+            .signal-history-list {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .signal-history-empty {
+                color: #8a919e;
+                padding: 16px 0;
+            }
+
+            .signal-history-item {
+                display: grid;
+                grid-template-columns:
+                    90px
+                    minmax(100px, 1fr)
+                    70px
+                    90px
+                    minmax(140px, 1fr);
+
+                align-items: center;
+                gap: 14px;
+
+                padding: 13px 15px;
+
+                background: #171B26;
+
+                border:
+                    1px solid #2B2B43;
+
+                border-radius: 8px;
+            }
+
+            .signal-history-time,
+            .signal-history-symbol,
+            .signal-history-interval,
+            .signal-history-price {
+                color: #d1d4dc;
+            }
+
+            .signal-history-buy {
+                color: #00e676;
+                font-weight: 900;
+            }
+
+            .signal-history-sell {
+                color: #ff5252;
+                font-weight: 900;
+            }
+
+            .signal-toast {
+                position: fixed;
+
+                top: 24px;
+                right: 24px;
+
+                z-index: 9999;
+
+                min-width: 280px;
+
+                padding: 16px 20px;
+
+                border-radius: 10px;
+
+                background: #1E222D;
+
+                border: 1px solid #434651;
+
+                box-shadow:
+                    0 12px 30px
+                    rgba(0, 0, 0, 0.35);
+
+                opacity: 0;
+
+                transform:
+                    translateY(-15px);
+
+                pointer-events: none;
+
+                transition:
+                    opacity 0.2s ease,
+                    transform 0.2s ease;
+            }
+
+            .signal-toast.visible {
+                opacity: 1;
+
+                transform:
+                    translateY(0);
+            }
+
+            .signal-toast.buy {
+                border-color:
+                    rgba(
+                        0,
+                        230,
+                        118,
+                        0.55
+                    );
+            }
+
+            .signal-toast.sell {
+                border-color:
+                    rgba(
+                        255,
+                        82,
+                        82,
+                        0.55
+                    );
+            }
+
+            @media (
+                max-width: 900px
+            ) {
+                .signal-history-item {
+                    grid-template-columns:
+                        1fr
+                        1fr;
+                }
+            }
+
 
             #optimizer-error,
             #walk-forward-error,
@@ -1381,6 +1544,45 @@ def read_root():
                     class="live-market-chart"
                 ></div>
             </div>
+
+            <div class="signal-alert-section">
+                <div class="signal-alert-header">
+                    <div>
+                        <h3 class="section-title">
+                            Live Signal Alerts
+                        </h3>
+
+                        <div class="signal-alert-description">
+                            Only confirmed crossovers from closed candles
+                            are added to this history.
+                        </div>
+                    </div>
+
+                    <button
+                        class="btn-secondary"
+                        onclick="clearLiveSignalHistory()"
+                    >
+                        Clear History
+                    </button>
+                </div>
+
+                <div
+                    id="live-signal-history-empty"
+                    class="signal-history-empty"
+                >
+                    No confirmed signals in this session.
+                </div>
+
+                <div
+                    id="live-signal-history"
+                    class="signal-history-list"
+                ></div>
+            </div>
+
+            <div
+                id="live-signal-toast"
+                class="signal-toast"
+            ></div>
 
             <div id="live-market-error"></div>
 
@@ -3295,6 +3497,9 @@ def read_root():
             let liveVolumeSeries = null;
             let liveSignalMarkers = [];
             let liveProvisionalMarker = null;
+            let liveSignalHistory = [];
+            let liveLastConfirmedCrossoverKey = null;
+            let liveSignalToastTimer = null;
             let liveLastClose = null;
             let live24hStatsTimer = null;
             let liveReconnectTimer = null;
@@ -3923,6 +4128,232 @@ def read_root():
             }
 
 
+            function renderLiveSignalHistory() {
+                const container =
+                    document.getElementById(
+                        'live-signal-history'
+                    );
+
+                const empty =
+                    document.getElementById(
+                        'live-signal-history-empty'
+                    );
+
+                container.innerHTML = '';
+
+                if (
+                    liveSignalHistory.length
+                    === 0
+                ) {
+                    empty.style.display =
+                        'block';
+
+                    return;
+                }
+
+                empty.style.display =
+                    'none';
+
+                liveSignalHistory.forEach(
+                    event => {
+                        const row =
+                            document.createElement(
+                                'div'
+                            );
+
+                        row.className =
+                            'signal-history-item';
+
+                        const signalClass =
+                            event.signal === 'BUY'
+                            ? 'signal-history-buy'
+                            : 'signal-history-sell';
+
+                        row.innerHTML =
+                            '<div class="signal-history-time">'
+                            + event.timeLabel
+                            + '</div>'
+
+                            + '<div class="signal-history-symbol">'
+                            + event.symbol
+                            + '</div>'
+
+                            + '<div class="signal-history-interval">'
+                            + event.interval
+                            + '</div>'
+
+                            + '<div class="'
+                            + signalClass
+                            + '">'
+                            + event.signal
+                            + '</div>'
+
+                            + '<div class="signal-history-price">'
+                            + formatMarketPrice(
+                                event.price
+                            )
+                            + '</div>';
+
+                        container.appendChild(
+                            row
+                        );
+                    }
+                );
+            }
+
+
+            function clearLiveSignalHistory() {
+                liveSignalHistory = [];
+
+                renderLiveSignalHistory();
+            }
+
+
+            function showLiveSignalToast(
+                event
+            ) {
+                const toast =
+                    document.getElementById(
+                        'live-signal-toast'
+                    );
+
+                toast.className =
+                    'signal-toast '
+                    + (
+                        event.signal
+                        === 'BUY'
+                        ? 'buy'
+                        : 'sell'
+                    );
+
+                toast.innerHTML =
+                    '<strong>'
+                    + event.signal
+                    + ' CONFIRMED'
+                    + '</strong>'
+                    + '<br>'
+                    + event.symbol
+                    + ' · '
+                    + event.interval
+                    + '<br>'
+                    + formatMarketPrice(
+                        event.price
+                    );
+
+                requestAnimationFrame(
+                    () => {
+                        toast.classList.add(
+                            'visible'
+                        );
+                    }
+                );
+
+                if (liveSignalToastTimer) {
+                    clearTimeout(
+                        liveSignalToastTimer
+                    );
+                }
+
+                liveSignalToastTimer =
+                    setTimeout(
+                        () => {
+                            toast.classList.remove(
+                                'visible'
+                            );
+                        },
+                        5000
+                    );
+            }
+
+
+            function recordConfirmedCrossover(
+                indicators,
+                price
+            ) {
+                if (
+                    !indicators
+                    || !indicators.last_crossover
+                ) {
+                    return;
+                }
+
+                const crossover =
+                    indicators.last_crossover;
+
+                const key =
+                    crossover.signal
+                    + ':'
+                    + crossover.time_ms;
+
+                if (
+                    key
+                    === liveLastConfirmedCrossoverKey
+                ) {
+                    return;
+                }
+
+                liveLastConfirmedCrossoverKey =
+                    key;
+
+                const config =
+                    liveMarketConfig || {
+                        symbol:
+                            document.getElementById(
+                                'live-market-symbol'
+                            ).value,
+
+                        interval:
+                            document.getElementById(
+                                'live-market-interval'
+                            ).value
+                    };
+
+                const event = {
+                    signal:
+                        crossover.signal,
+
+                    time:
+                        crossover.time,
+
+                    timeLabel:
+                        new Date(
+                            crossover.time
+                        ).toLocaleTimeString(
+                            [],
+                            {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            }
+                        ),
+
+                    symbol:
+                        config.symbol,
+
+                    interval:
+                        config.interval,
+
+                    price:
+                        Number(price)
+                };
+
+                liveSignalHistory.unshift(
+                    event
+                );
+
+                liveSignalHistory =
+                    liveSignalHistory.slice(
+                        0,
+                        20
+                    );
+
+                renderLiveSignalHistory();
+
+                showLiveSignalToast(
+                    event
+                );
+            }
+
+
             function updateLiveCrossoverMarker(
                 indicators,
                 candleTime
@@ -4396,6 +4827,11 @@ def read_root():
                             candleTime
                         );
 
+                        recordConfirmedCrossover(
+                            message.indicators,
+                            close
+                        );
+
                         liveVolumeSeries.update(
                             {
                                 time:
@@ -4526,6 +4962,9 @@ def read_root():
                     );
 
                 errorBox.innerText = '';
+
+                liveLastConfirmedCrossoverKey =
+                    null;
 
                 document.getElementById(
                     'live-symbol'
