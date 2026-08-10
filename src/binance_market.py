@@ -167,6 +167,121 @@ def get_klines(
     return result
 
 
+def parse_24h_ticker(
+    payload: dict,
+) -> dict:
+    return {
+        "symbol":
+            payload["symbol"],
+
+        "price_change":
+            float(
+                payload["priceChange"]
+            ),
+
+        "price_change_pct":
+            float(
+                payload["priceChangePercent"]
+            ),
+
+        "weighted_average_price":
+            float(
+                payload["weightedAvgPrice"]
+            ),
+
+        "previous_close":
+            float(
+                payload["prevClosePrice"]
+            ),
+
+        "last_price":
+            float(
+                payload["lastPrice"]
+            ),
+
+        "open_price":
+            float(
+                payload["openPrice"]
+            ),
+
+        "high_price":
+            float(
+                payload["highPrice"]
+            ),
+
+        "low_price":
+            float(
+                payload["lowPrice"]
+            ),
+
+        "volume":
+            float(
+                payload["volume"]
+            ),
+
+        "quote_volume":
+            float(
+                payload["quoteVolume"]
+            ),
+
+        "trade_count":
+            int(
+                payload["count"]
+            ),
+
+        "open_time_ms":
+            int(
+                payload["openTime"]
+            ),
+
+        "close_time_ms":
+            int(
+                payload["closeTime"]
+            ),
+    }
+
+
+def get_24h_ticker(
+    symbol: str = "BTCUSDT",
+) -> dict:
+    symbol = normalize_symbol(
+        symbol
+    )
+
+    query = urlencode(
+        {
+            "symbol": symbol,
+        }
+    )
+
+    url = (
+        f"{BINANCE_REST_BASE}"
+        f"/api/v3/ticker/24hr?{query}"
+    )
+
+    with urlopen(
+        url,
+        timeout=10,
+    ) as response:
+        payload = json.loads(
+            response.read().decode(
+                "utf-8"
+            )
+        )
+
+    if not isinstance(
+        payload,
+        dict,
+    ):
+        raise ValueError(
+            "Unexpected Binance ticker response."
+        )
+
+    return parse_24h_ticker(
+        payload
+    )
+
+
 def parse_kline_message(
     raw_message: str,
 ) -> dict:

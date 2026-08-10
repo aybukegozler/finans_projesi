@@ -5,6 +5,7 @@ import pytest
 from src.binance_market import (
     normalize_symbol,
     parse_kline_message,
+    parse_24h_ticker,
     validate_interval,
 )
 
@@ -117,4 +118,59 @@ def test_parse_binance_kline():
     assert (
         result["closed"]
         is False
+    )
+
+
+def test_parse_24h_ticker():
+    payload = {
+        "symbol": "BTCUSDT",
+        "priceChange": "1500.50",
+        "priceChangePercent": "2.35",
+        "weightedAvgPrice": "65000.00",
+        "prevClosePrice": "64000.00",
+        "lastPrice": "65500.50",
+        "lastQty": "0.1",
+        "bidPrice": "65500.40",
+        "askPrice": "65500.50",
+        "openPrice": "64000.00",
+        "highPrice": "66000.00",
+        "lowPrice": "63500.00",
+        "volume": "12345.67",
+        "quoteVolume": "800000000.00",
+        "openTime": 1786300000000,
+        "closeTime": 1786386400000,
+        "firstId": 1,
+        "lastId": 100,
+        "count": 100,
+    }
+
+    result = parse_24h_ticker(
+        payload
+    )
+
+    assert result["symbol"] == "BTCUSDT"
+
+    assert (
+        result["last_price"]
+        == 65500.50
+    )
+
+    assert (
+        result["price_change_pct"]
+        == 2.35
+    )
+
+    assert (
+        result["high_price"]
+        == 66000.00
+    )
+
+    assert (
+        result["low_price"]
+        == 63500.00
+    )
+
+    assert (
+        result["trade_count"]
+        == 100
     )

@@ -273,6 +273,13 @@ def test_frontend_contains_backtest_dashboard(
     assert 'id="live-sma-spread"' in html
     assert 'id="live-crossover"' in html
     assert 'id="live-last-crossover"' in html
+    assert 'id="live-24h-change"' in html
+    assert 'id="live-24h-high"' in html
+    assert 'id="live-24h-low"' in html
+    assert 'id="live-24h-volume"' in html
+    assert "load24hMarketStats" in html
+    assert "scheduleLiveMarketReconnect" in html
+    assert "/api/market/ticker/24h" in html
     assert "startLiveMarket()" in html
     assert "/api/market/klines" in html
     assert "/ws/market/" in html
@@ -923,3 +930,79 @@ def test_live_market_websocket(
             ]
             is None
         )
+
+
+def test_market_24h_ticker_requires_authentication(
+    client,
+):
+    response = client.get(
+        "/api/market/ticker/24h"
+    )
+
+    assert response.status_code == 401
+
+
+def test_authenticated_user_can_get_24h_ticker(
+    client,
+    monkeypatch,
+):
+    def fake_get_24h_ticker(
+        symbol,
+    ):
+        assert symbol == "BTCUSDT"
+
+        return {
+            "symbol": "BTCUSDT",
+            "price_change": 1500.0,
+            "price_change_pct": 2.35,
+            "weighted_average_price": 65000.0,
+            "previous_close": 64000.0,
+            "last_price": 65500.0,
+            "open_price": 64000.0,
+            "high_price": 66000.0,
+            "low_price": 63500.0,
+            "volume": 12345.0,
+            "quote_volume": 800000000.0,
+            "trade_count": 100000,
+            "open_time_ms": 1786300000000,
+            "close_time_ms": 1786386400000,
+        }
+
+    monkeypatch.setattr(
+        "src.api.get_24h_ticker",
+        fake_get_24h_ticker,
+    )
+
+    login_response = login(
+        client,
+        os.environ["USER_USERNAME"],
+        os.environ["USER_PASSWORD"],
+    )
+
+    response = client.get(
+        "/api/market/ticker/24h?symbol=BTCUSDT",
+        headers=auth_header(
+            login_response["access_token"]
+        ),
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert (
+        body["source"]
+        == "Binance Spot"
+    )
+
+    assert (
+        body["ticker"]["symbol"]
+        == "BTCUSDT"
+    )
+
+    assert (
+        body["ticker"][
+            "price_change_pct"
+        ]
+        == 2.35
+    )

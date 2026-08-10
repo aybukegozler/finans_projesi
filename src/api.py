@@ -28,6 +28,7 @@ from src.trade_analytics import analyze_trades
 from src.live_signal import LiveSMAEngine
 from src.binance_market import (
     get_klines,
+    get_24h_ticker,
     normalize_symbol,
     stream_klines,
     validate_interval,
@@ -566,6 +567,47 @@ def market_klines(
         "interval": validated_interval,
         "count": len(candles),
         "candles": candles,
+    }
+
+
+# Binance 24h Market Statistics
+@app.get("/api/market/ticker/24h")
+def market_24h_ticker(
+    symbol: str = "BTCUSDT",
+    current_user = Depends(get_current_user),
+):
+    try:
+        normalized_symbol = normalize_symbol(
+            symbol
+        )
+
+        ticker = get_24h_ticker(
+            normalized_symbol
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+
+    except Exception as error:
+        print(
+            "Binance 24h ticker hatası:",
+            type(error).__name__,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=(
+                "Binance 24h market verisine "
+                "ulaşılamadı."
+            ),
+        ) from error
+
+    return {
+        "source": "Binance Spot",
+        "ticker": ticker,
     }
 
 
@@ -1195,6 +1237,57 @@ def read_root():
                     </div>
                 </div>
             </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">
+                        24H Change
+                    </div>
+                    <div
+                        id="live-24h-change"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        24H High
+                    </div>
+                    <div
+                        id="live-24h-high"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        24H Low
+                    </div>
+                    <div
+                        id="live-24h-low"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        24H Quote Volume
+                    </div>
+                    <div
+                        id="live-24h-volume"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+            </div>
+
 
             <div class="metrics-grid">
                 <div class="metric-card">
@@ -3200,6 +3293,10 @@ def read_root():
             let liveSma20Series = null;
             let liveSma50Series = null;
             let liveLastClose = null;
+            let live24hStatsTimer = null;
+            let liveReconnectTimer = null;
+            let liveReconnectAttempts = 0;
+            let liveMarketConfig = null;
 
 
             function formatMarketPrice(value) {
@@ -3380,6 +3477,115 @@ def read_root():
                 );
 
                 return result;
+            }
+
+
+            async function load24hMarketStats(
+                symbol
+            ) {
+                const token =
+                    localStorage.getItem(
+                        'quant_token'
+                    );
+
+                const params =
+                    new URLSearchParams({
+                        symbol: symbol
+                    });
+
+                const response =
+                    await fetch(
+                        '/api/market/ticker/24h?'
+                        + params.toString(),
+                        {
+                            headers: {
+                                'Authorization':
+                                    'Bearer ' + token
+                            }
+                        }
+                    );
+
+                if (response.status === 401) {
+                    logout();
+
+                    throw new Error(
+                        'Oturum süresi doldu.'
+                    );
+                }
+
+                if (!response.ok) {
+                    const body =
+                        await response.json();
+
+                    throw new Error(
+                        body.detail
+                        || '24h market verisi alınamadı.'
+                    );
+                }
+
+                const data =
+                    await response.json();
+
+                const ticker =
+                    data.ticker;
+
+                const change =
+                    Number(
+                        ticker.price_change_pct
+                    );
+
+                const changeElement =
+                    document.getElementById(
+                        'live-24h-change'
+                    );
+
+                changeElement.innerText =
+                    (
+                        change >= 0
+                        ? '+'
+                        : ''
+                    )
+                    + change.toFixed(2)
+                    + '%';
+
+                setMetricTrend(
+                    'live-24h-change',
+                    change
+                );
+
+
+                document.getElementById(
+                    'live-24h-high'
+                ).innerText =
+                    formatMarketPrice(
+                        ticker.high_price
+                    );
+
+
+                document.getElementById(
+                    'live-24h-low'
+                ).innerText =
+                    formatMarketPrice(
+                        ticker.low_price
+                    );
+
+
+                const quoteVolume =
+                    Number(
+                        ticker.quote_volume
+                    );
+
+                document.getElementById(
+                    'live-24h-volume'
+                ).innerText =
+                    quoteVolume
+                    .toLocaleString(
+                        undefined,
+                        {
+                            notation: 'compact',
+                            maximumFractionDigits: 2
+                        }
+                    );
             }
 
 
@@ -3708,6 +3914,47 @@ def read_root():
             }
 
 
+            function scheduleLiveMarketReconnect() {
+                if (!liveMarketConfig) {
+                    return;
+                }
+
+                if (liveReconnectTimer) {
+                    clearTimeout(
+                        liveReconnectTimer
+                    );
+                }
+
+                liveReconnectAttempts += 1;
+
+                const delay =
+                    Math.min(
+                        1000
+                        * Math.pow(
+                            2,
+                            liveReconnectAttempts - 1
+                        ),
+                        15000
+                    );
+
+                setLiveMarketStatus(
+                    'connecting',
+                    '● RECONNECTING'
+                );
+
+                liveReconnectTimer =
+                    setTimeout(
+                        () => {
+                            connectLiveMarketSocket(
+                                liveMarketConfig.symbol,
+                                liveMarketConfig.interval
+                            );
+                        },
+                        delay
+                    );
+            }
+
+
             function connectLiveMarketSocket(
                 symbol,
                 interval
@@ -3767,6 +4014,8 @@ def read_root():
                                 'connected',
                                 '● LIVE'
                             );
+
+                            liveReconnectAttempts = 0;
 
                             updateLiveIndicators(
                                 message.indicators
@@ -3923,6 +4172,8 @@ def read_root():
                             'disconnected',
                             '● OFFLINE'
                         );
+
+                        scheduleLiveMarketReconnect();
                     };
             }
 
@@ -3958,10 +4209,45 @@ def read_root():
                 try {
                     initializeLiveMarketChart();
 
-                    await loadHistoricalMarketData(
-                        symbol,
-                        interval
-                    );
+                    await Promise.all([
+                        loadHistoricalMarketData(
+                            symbol,
+                            interval
+                        ),
+                        load24hMarketStats(
+                            symbol
+                        )
+                    ]);
+
+                    if (live24hStatsTimer) {
+                        clearInterval(
+                            live24hStatsTimer
+                        );
+                    }
+
+                    live24hStatsTimer =
+                        setInterval(
+                            () => {
+                                load24hMarketStats(
+                                    symbol
+                                ).catch(
+                                    error => {
+                                        console.error(
+                                            "24h stats:",
+                                            error
+                                        );
+                                    }
+                                );
+                            },
+                            30000
+                        );
+
+                    liveReconnectAttempts = 0;
+
+                    liveMarketConfig = {
+                        symbol: symbol,
+                        interval: interval
+                    };
 
                     connectLiveMarketSocket(
                         symbol,
