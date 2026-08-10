@@ -180,3 +180,60 @@ def test_optimizer_rejects_invalid_objective(
             long_windows=[20],
             objective="magic_metric",
         )
+
+
+def test_force_close_at_end_closes_open_position(
+    tmp_path,
+):
+    market_data = pd.DataFrame(
+        {
+            "Date": [
+                "2026-01-01",
+                "2026-01-02",
+                "2026-01-03",
+            ],
+            "Close": [
+                100.0,
+                110.0,
+                120.0,
+            ],
+            "SMA_SHORT": [
+                0.0,
+                0.0,
+                0.0,
+            ],
+            "SMA_LONG": [
+                0.0,
+                0.0,
+                0.0,
+            ],
+            "Signal": [
+                1,
+                0,
+                0,
+            ],
+        }
+    )
+
+    result = evaluate_strategy(
+        market_data,
+        initial_capital=10_000,
+        transaction_fee_pct=0,
+        slippage_pct=0,
+        force_close_at_end=True,
+    )
+
+    assert (
+        result["closed_trades"]
+        == 1
+    )
+
+    assert (
+        result["winning_trades"]
+        == 1
+    )
+
+    assert (
+        result["final_value"]
+        == 12_000.0
+    )

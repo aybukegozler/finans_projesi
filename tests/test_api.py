@@ -246,6 +246,14 @@ def test_frontend_contains_backtest_dashboard(
     assert 'id="optimizer-results-body"' in html
     assert "loadOptimizerData()" in html
     assert "/api/optimize" in html
+    assert 'id="walk-forward-objective"' in html
+    assert 'id="wf-oos-return"' in html
+    assert 'id="wf-benchmark"' in html
+    assert 'id="wf-excess"' in html
+    assert 'id="wf-median-sharpe"' in html
+    assert 'id="walk-forward-results-body"' in html
+    assert "loadWalkForwardData()" in html
+    assert "/api/walk-forward" in html
     assert "loadBacktestData()" in html
     assert "/api/backtest" in html
 
@@ -350,6 +358,109 @@ def test_optimizer_rejects_invalid_objective(client):
 
     response = client.get(
         "/api/optimize?objective=magic_metric",
+        headers=auth_header(
+            login_response["access_token"]
+        ),
+    )
+
+    assert response.status_code == 400
+
+
+def test_walk_forward_requires_authentication(client):
+    response = client.get("/api/walk-forward")
+
+    assert response.status_code == 401
+
+
+def test_authenticated_user_can_run_walk_forward(
+    client,
+    monkeypatch,
+):
+    def fake_walk_forward_validate(**kwargs):
+        return {
+            "method": "Expanding Window Walk-Forward",
+            "objective": kwargs["objective"],
+            "summary": {
+                "folds": 5,
+                "initial_capital": 10000.0,
+                "final_value": 10935.42,
+                "out_of_sample_return_pct": 9.35,
+                "benchmark_final_value": 14808.0,
+                "benchmark_return_pct": 48.08,
+                "excess_return_pct": -38.72,
+                "profitable_folds": 2,
+                "profitable_fold_rate_pct": 40.0,
+                "average_test_return_pct": 1.87,
+                "median_test_return_pct": 0.0,
+                "average_test_sharpe": 1.236,
+                "median_test_sharpe": 0.0,
+                "total_closed_trades": 2,
+                "zero_closed_trade_folds": 3,
+                "worst_fold_drawdown_pct": 0.8,
+                "most_selected_pair": {
+                    "short_window": 30,
+                    "long_window": 60,
+                    "times_selected": 4,
+                    "selection_rate_pct": 80.0,
+                },
+            },
+            "folds": [],
+        }
+
+    monkeypatch.setattr(
+        "src.api.walk_forward_validate",
+        fake_walk_forward_validate,
+    )
+
+    login_response = login(
+        client,
+        os.environ["USER_USERNAME"],
+        os.environ["USER_PASSWORD"],
+    )
+
+    response = client.get(
+        (
+            "/api/walk-forward"
+            "?objective=sharpe_ratio"
+            "&initial_train_size=250"
+            "&test_size=50"
+        ),
+        headers=auth_header(
+            login_response["access_token"]
+        ),
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert (
+        body["method"]
+        == "Expanding Window Walk-Forward"
+    )
+
+    assert (
+        body["summary"]["out_of_sample_return_pct"]
+        == 9.35
+    )
+
+    assert (
+        body["summary"]["median_test_sharpe"]
+        == 0.0
+    )
+
+
+def test_walk_forward_rejects_invalid_objective(
+    client,
+):
+    login_response = login(
+        client,
+        os.environ["USER_USERNAME"],
+        os.environ["USER_PASSWORD"],
+    )
+
+    response = client.get(
+        "/api/walk-forward?objective=magic_metric",
         headers=auth_header(
             login_response["access_token"]
         ),

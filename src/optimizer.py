@@ -172,6 +172,7 @@ def evaluate_strategy(
     initial_capital: float = 10_000.0,
     transaction_fee_pct: float = 0.10,
     slippage_pct: float = 0.05,
+    force_close_at_end: bool = False,
 ) -> dict:
     if initial_capital <= 0:
         raise ValueError(
@@ -305,6 +306,49 @@ def evaluate_strategy(
     first_price = float(
         signal_data.iloc[0]["Close"]
     )
+
+    # Walk-forward test penceresinin sonunda açık pozisyon
+    # varsa gerçekçi biçimde kapatılır. Böylece sonraki fold'a
+    # hayali mark-to-market nakit taşınmaz.
+    if force_close_at_end and shares > 0:
+        effective_sell_price = (
+            last_price
+            * (1.0 - slippage_rate)
+        )
+
+        gross_exit = (
+            shares
+            * effective_sell_price
+        )
+
+        sell_fee = (
+            gross_exit
+            * fee_rate
+        )
+
+        total_fees_paid += sell_fee
+
+        exit_value = (
+            gross_exit
+            - sell_fee
+        )
+
+        if (
+            entry_value is not None
+            and exit_value > entry_value
+        ):
+            winning_trades += 1
+        else:
+            losing_trades += 1
+
+        closed_trades += 1
+
+        cash = exit_value
+        shares = 0.0
+        entry_value = None
+
+        if equity_curve:
+            equity_curve[-1] = cash
 
     final_value = (
         cash

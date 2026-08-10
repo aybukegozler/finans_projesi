@@ -251,6 +251,7 @@ def walk_forward_validate(
             initial_capital=fold_start_capital,
             transaction_fee_pct=transaction_fee_pct,
             slippage_pct=slippage_pct,
+            force_close_at_end=True,
         )
 
         strategy_capital = float(

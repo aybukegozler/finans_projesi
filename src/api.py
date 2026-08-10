@@ -22,6 +22,7 @@ from src.database import (
 
 from src.backtest import run_backtest
 from src.optimizer import optimize_sma_strategy
+from src.walk_forward import walk_forward_validate
 
 # --- UYGULAMA VE GÜVENLİK AYARLARI ---
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -362,6 +363,86 @@ def optimize_strategy(
     }
 
 
+# Walk-Forward Validation
+@app.get("/api/walk-forward")
+def walk_forward_analysis(
+    objective: str = "sharpe_ratio",
+    initial_train_size: int = 250,
+    test_size: int = 50,
+    initial_capital: float = 10_000.0,
+    transaction_fee_pct: float = 0.10,
+    slippage_pct: float = 0.05,
+    current_user: User = Depends(get_current_user),
+):
+    allowed_objectives = {
+        "sharpe_ratio",
+        "total_return_pct",
+        "excess_return_pct",
+    }
+
+    if objective not in allowed_objectives:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Geçersiz validation metriği.",
+        )
+
+    if initial_capital <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Başlangıç sermayesi sıfırdan büyük olmalıdır.",
+        )
+
+    if not 101 <= initial_train_size <= 450:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Training size 101 ile 450 arasında olmalıdır.",
+        )
+
+    if not 10 <= test_size <= 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Test size 10 ile 100 arasında olmalıdır.",
+        )
+
+    try:
+        result = walk_forward_validate(
+            initial_train_size=initial_train_size,
+            test_size=test_size,
+            initial_capital=initial_capital,
+            transaction_fee_pct=transaction_fee_pct,
+            slippage_pct=slippage_pct,
+            objective=objective,
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Market verisi bulunamadı.",
+        ) from error
+
+    except Exception as error:
+        print(
+            "Walk-forward hatası: "
+            f"{type(error).__name__}"
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Walk-forward validation tamamlanamadı.",
+        ) from error
+
+    return {
+        "requested_by_role": current_user.role,
+        **result,
+    }
+
+
 # 3. Ön Yüz (Frontend)
 @app.get("/", response_class=HTMLResponse)
 def read_root():
@@ -578,7 +659,8 @@ def read_root():
                 border-bottom: none;
             }
 
-            #optimizer-error {
+            #optimizer-error,
+            #walk-forward-error {
                 color: #FF5252;
                 margin-top: 10px;
                 font-weight: bold;
@@ -924,6 +1006,138 @@ def read_root():
             </div>
 
             <div id="optimizer-error"></div>
+
+            <h2 class="section-title">
+                Walk-Forward Validation
+            </h2>
+
+            <div class="optimizer-toolbar">
+                <div class="backtest-control">
+                    <label for="walk-forward-objective">
+                        Training Objective
+                    </label>
+
+                    <select id="walk-forward-objective">
+                        <option value="sharpe_ratio">
+                            Sharpe Ratio
+                        </option>
+                        <option value="total_return_pct">
+                            Total Return
+                        </option>
+                        <option value="excess_return_pct">
+                            Excess Return
+                        </option>
+                    </select>
+                </div>
+
+                <div class="backtest-control">
+                    <label for="walk-forward-train-size">
+                        Initial Train Rows
+                    </label>
+
+                    <input
+                        id="walk-forward-train-size"
+                        type="number"
+                        value="250"
+                        min="101"
+                        max="450"
+                    >
+                </div>
+
+                <div class="backtest-control">
+                    <label for="walk-forward-test-size">
+                        Test Rows
+                    </label>
+
+                    <input
+                        id="walk-forward-test-size"
+                        type="number"
+                        value="50"
+                        min="10"
+                        max="100"
+                    >
+                </div>
+
+                <button
+                    class="btn-backtest"
+                    onclick="loadWalkForwardData()"
+                >
+                    Validate Out-of-Sample
+                </button>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">OOS Return</div>
+                    <div id="wf-oos-return" class="metric-value">--</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Benchmark</div>
+                    <div id="wf-benchmark" class="metric-value">--</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">OOS Excess Return</div>
+                    <div id="wf-excess" class="metric-value">--</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Average Test Sharpe</div>
+                    <div id="wf-average-sharpe" class="metric-value">--</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Median Test Sharpe</div>
+                    <div id="wf-median-sharpe" class="metric-value">--</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Worst Fold Drawdown</div>
+                    <div id="wf-drawdown" class="metric-value metric-negative">--</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Profitable Folds</div>
+                    <div id="wf-profitable-folds" class="metric-value">--</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Most Selected Pair</div>
+                    <div id="wf-pair" class="metric-value">--</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Closed Trades</div>
+                    <div id="wf-trades" class="metric-value metric-neutral">--</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Zero-Trade Folds</div>
+                    <div id="wf-zero-folds" class="metric-value metric-neutral">--</div>
+                </div>
+            </div>
+
+            <div class="optimizer-table-wrapper">
+                <table class="optimizer-table">
+                    <thead>
+                        <tr>
+                            <th>Fold</th>
+                            <th>Selected SMA</th>
+                            <th>Test Period</th>
+                            <th>Return</th>
+                            <th>Benchmark</th>
+                            <th>Sharpe</th>
+                            <th>Drawdown</th>
+                            <th>Trades</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="walk-forward-results-body"></tbody>
+                </table>
+            </div>
+
+            <div id="walk-forward-error"></div>
         </div>
 
         <script>
@@ -1573,6 +1787,266 @@ def read_root():
                 .catch(error => {
                     errorBox.innerText =
                         'Optimizer Hatası: '
+                        + error.message;
+                });
+            }
+
+
+            // --- WALK-FORWARD VALIDATION ---
+
+            function loadWalkForwardData() {
+                const token =
+                    localStorage.getItem('quant_token');
+
+                const objective =
+                    document.getElementById(
+                        'walk-forward-objective'
+                    ).value;
+
+                const trainSize =
+                    Number(
+                        document.getElementById(
+                            'walk-forward-train-size'
+                        ).value
+                    );
+
+                const testSize =
+                    Number(
+                        document.getElementById(
+                            'walk-forward-test-size'
+                        ).value
+                    );
+
+                const initialCapital =
+                    Number(
+                        document.getElementById(
+                            'initial-capital'
+                        ).value
+                    );
+
+                const transactionFee =
+                    Number(
+                        document.getElementById(
+                            'transaction-fee'
+                        ).value
+                    );
+
+                const slippage =
+                    Number(
+                        document.getElementById(
+                            'slippage'
+                        ).value
+                    );
+
+                const errorBox =
+                    document.getElementById(
+                        'walk-forward-error'
+                    );
+
+                errorBox.innerText = '';
+
+                const params =
+                    new URLSearchParams({
+                        objective: objective,
+                        initial_train_size:
+                            String(trainSize),
+                        test_size:
+                            String(testSize),
+                        initial_capital:
+                            String(initialCapital),
+                        transaction_fee_pct:
+                            String(transactionFee),
+                        slippage_pct:
+                            String(slippage)
+                    });
+
+                fetch(
+                    '/api/walk-forward?'
+                    + params.toString(),
+                    {
+                        headers: {
+                            'Authorization':
+                                'Bearer ' + token
+                        }
+                    }
+                )
+                .then(response => {
+                    if (response.status === 401) {
+                        logout();
+
+                        throw new Error(
+                            'Oturum süresi doldu.'
+                        );
+                    }
+
+                    if (!response.ok) {
+                        return response.json()
+                            .then(body => {
+                                throw new Error(
+                                    body.detail
+                                    || 'Walk-forward API hatası'
+                                );
+                            });
+                    }
+
+                    return response.json();
+                })
+                .then(data => {
+                    const summary = data.summary;
+
+                    const oos =
+                        document.getElementById(
+                            'wf-oos-return'
+                        );
+
+                    oos.innerText =
+                        formatPercent(
+                            summary.out_of_sample_return_pct
+                        );
+
+                    setMetricTrend(
+                        'wf-oos-return',
+                        summary.out_of_sample_return_pct
+                    );
+
+
+                    document.getElementById(
+                        'wf-benchmark'
+                    ).innerText =
+                        formatPercent(
+                            summary.benchmark_return_pct
+                        );
+
+
+                    const excess =
+                        document.getElementById(
+                            'wf-excess'
+                        );
+
+                    excess.innerText =
+                        formatPercent(
+                            summary.excess_return_pct
+                        );
+
+                    setMetricTrend(
+                        'wf-excess',
+                        summary.excess_return_pct
+                    );
+
+
+                    document.getElementById(
+                        'wf-average-sharpe'
+                    ).innerText =
+                        Number(
+                            summary.average_test_sharpe
+                        ).toFixed(3);
+
+
+                    document.getElementById(
+                        'wf-median-sharpe'
+                    ).innerText =
+                        Number(
+                            summary.median_test_sharpe
+                        ).toFixed(3);
+
+
+                    document.getElementById(
+                        'wf-drawdown'
+                    ).innerText =
+                        '-'
+                        + Number(
+                            summary.worst_fold_drawdown_pct
+                        ).toFixed(2)
+                        + '%';
+
+
+                    document.getElementById(
+                        'wf-profitable-folds'
+                    ).innerText =
+                        summary.profitable_folds
+                        + ' / '
+                        + summary.folds;
+
+
+                    const pair =
+                        summary.most_selected_pair;
+
+                    document.getElementById(
+                        'wf-pair'
+                    ).innerText =
+                        'SMA'
+                        + pair.short_window
+                        + ' / SMA'
+                        + pair.long_window;
+
+
+                    document.getElementById(
+                        'wf-trades'
+                    ).innerText =
+                        summary.total_closed_trades;
+
+
+                    document.getElementById(
+                        'wf-zero-folds'
+                    ).innerText =
+                        summary.zero_closed_trade_folds;
+
+
+                    const tbody =
+                        document.getElementById(
+                            'walk-forward-results-body'
+                        );
+
+                    tbody.innerHTML = '';
+
+                    data.folds.forEach(fold => {
+                        const tr =
+                            document.createElement('tr');
+
+                        tr.innerHTML =
+                            '<td>'
+                            + fold.fold
+                            + '</td>'
+                            + '<td>SMA'
+                            + fold.selected_short_window
+                            + ' / SMA'
+                            + fold.selected_long_window
+                            + '</td>'
+                            + '<td>'
+                            + fold.test_start
+                            + ' → '
+                            + fold.test_end
+                            + '</td>'
+                            + '<td>'
+                            + formatPercent(
+                                fold.test_return_pct
+                            )
+                            + '</td>'
+                            + '<td>'
+                            + formatPercent(
+                                fold.test_buy_hold_return_pct
+                            )
+                            + '</td>'
+                            + '<td>'
+                            + Number(
+                                fold.test_sharpe_ratio
+                            ).toFixed(3)
+                            + '</td>'
+                            + '<td>-'
+                            + Number(
+                                fold.test_max_drawdown_pct
+                            ).toFixed(2)
+                            + '%</td>'
+                            + '<td>'
+                            + fold.test_closed_trades
+                            + '</td>';
+
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(error => {
+                    errorBox.innerText =
+                        'Walk-Forward Hatası: '
                         + error.message;
                 });
             }
