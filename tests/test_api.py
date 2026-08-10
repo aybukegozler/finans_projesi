@@ -254,6 +254,13 @@ def test_frontend_contains_backtest_dashboard(
     assert 'id="walk-forward-results-body"' in html
     assert "loadWalkForwardData()" in html
     assert "/api/walk-forward" in html
+    assert 'id="trade-closed-count"' in html
+    assert 'id="trade-net-pnl"' in html
+    assert 'id="trade-profit-factor"' in html
+    assert 'id="position-unrealized-pnl"' in html
+    assert 'id="trade-history-body"' in html
+    assert "loadTradeAnalytics()" in html
+    assert "/api/trades" in html
     assert "loadBacktestData()" in html
     assert "/api/backtest" in html
 
@@ -461,6 +468,127 @@ def test_walk_forward_rejects_invalid_objective(
 
     response = client.get(
         "/api/walk-forward?objective=magic_metric",
+        headers=auth_header(
+            login_response["access_token"]
+        ),
+    )
+
+    assert response.status_code == 400
+
+
+def test_trade_analytics_requires_authentication(
+    client,
+):
+    response = client.get("/api/trades")
+
+    assert response.status_code == 401
+
+
+def test_authenticated_user_can_read_trade_analytics(
+    client,
+    monkeypatch,
+):
+    def fake_analyze_trades(**kwargs):
+        return {
+            "summary": {
+                "closed_trades": 6,
+                "winning_trades": 2,
+                "losing_trades": 4,
+                "win_rate_pct": 33.33,
+                "total_net_pnl": 979.68,
+                "total_fees": 113.35,
+                "total_slippage_cost": 56.67,
+                "profit_factor": 1.421,
+                "average_trade_return_pct": 2.25,
+                "average_holding_days": 59.5,
+                "best_trade_return_pct": 23.18,
+                "worst_trade_return_pct": -9.34,
+                "has_open_position": True,
+                "first_date": "2024-08-05",
+                "last_date": "2026-08-04",
+            },
+            "trades": [
+                {
+                    "trade_number": 1,
+                    "entry_date": "2024-12-03",
+                    "exit_date": "2025-01-27",
+                    "holding_days": 55,
+                    "market_entry_price": 100.0,
+                    "effective_entry_price": 100.05,
+                    "market_exit_price": 95.0,
+                    "effective_exit_price": 94.95,
+                    "shares": 99.0,
+                    "gross_pnl": -500.0,
+                    "net_pnl": -555.47,
+                    "return_pct": -5.55,
+                    "buy_fee": 10.0,
+                    "sell_fee": 9.4,
+                    "total_fees": 19.4,
+                    "slippage_cost": 9.8,
+                    "total_costs": 29.2,
+                    "result": "LOSS",
+                    "forced_exit": False,
+                }
+            ],
+            "open_position": {
+                "entry_date": "2026-07-09",
+                "current_date": "2026-08-04",
+                "holding_days": 26,
+                "market_entry_price": 316.22,
+                "current_market_price": 309.38,
+                "shares": 34.6696,
+                "estimated_liquidation_value": 10710.0,
+                "unrealized_pnl": -269.67,
+                "unrealized_return_pct": -2.46,
+            },
+        }
+
+    monkeypatch.setattr(
+        "src.api.analyze_trades",
+        fake_analyze_trades,
+    )
+
+    login_response = login(
+        client,
+        os.environ["USER_USERNAME"],
+        os.environ["USER_PASSWORD"],
+    )
+
+    response = client.get(
+        (
+            "/api/trades"
+            "?initial_capital=10000"
+            "&transaction_fee_pct=0.10"
+            "&slippage_pct=0.05"
+        ),
+        headers=auth_header(
+            login_response["access_token"]
+        ),
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["strategy"] == "SMA20/SMA50"
+    assert body["summary"]["closed_trades"] == 6
+    assert body["summary"]["win_rate_pct"] == 33.33
+    assert body["summary"]["total_net_pnl"] == 979.68
+    assert len(body["trades"]) == 1
+    assert body["open_position"] is not None
+
+
+def test_trade_analytics_rejects_invalid_cost(
+    client,
+):
+    login_response = login(
+        client,
+        os.environ["USER_USERNAME"],
+        os.environ["USER_PASSWORD"],
+    )
+
+    response = client.get(
+        "/api/trades?transaction_fee_pct=-1",
         headers=auth_header(
             login_response["access_token"]
         ),

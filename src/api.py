@@ -23,6 +23,7 @@ from src.database import (
 from src.backtest import run_backtest
 from src.optimizer import optimize_sma_strategy
 from src.walk_forward import walk_forward_validate
+from src.trade_analytics import analyze_trades
 
 # --- UYGULAMA VE GÜVENLİK AYARLARI ---
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -443,6 +444,74 @@ def walk_forward_analysis(
     }
 
 
+# Trade Analytics
+@app.get("/api/trades")
+def trade_analytics(
+    initial_capital: float = 10_000.0,
+    transaction_fee_pct: float = 0.10,
+    slippage_pct: float = 0.05,
+    force_close_at_end: bool = False,
+    current_user: User = Depends(get_current_user),
+):
+    if initial_capital <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Başlangıç sermayesi sıfırdan büyük olmalıdır.",
+        )
+
+    if not 0 <= transaction_fee_pct <= 5:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="İşlem ücreti yüzde 0 ile 5 arasında olmalıdır.",
+        )
+
+    if not 0 <= slippage_pct <= 5:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Slippage yüzde 0 ile 5 arasında olmalıdır.",
+        )
+
+    try:
+        result = analyze_trades(
+            initial_capital=initial_capital,
+            transaction_fee_pct=transaction_fee_pct,
+            slippage_pct=slippage_pct,
+            force_close_at_end=force_close_at_end,
+        )
+
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Signal verisi bulunamadı.",
+        ) from error
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+
+    except Exception as error:
+        print(
+            "Trade analytics hatası: "
+            f"{type(error).__name__}"
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Trade analytics tamamlanamadı.",
+        ) from error
+
+    return {
+        "strategy": "SMA20/SMA50",
+        "requested_by_role": current_user.role,
+        "initial_capital": initial_capital,
+        "transaction_fee_pct": transaction_fee_pct,
+        "slippage_pct": slippage_pct,
+        **result,
+    }
+
+
 # 3. Ön Yüz (Frontend)
 @app.get("/", response_class=HTMLResponse)
 def read_root():
@@ -660,7 +729,8 @@ def read_root():
             }
 
             #optimizer-error,
-            #walk-forward-error {
+            #walk-forward-error,
+            #trade-analytics-error {
                 color: #FF5252;
                 margin-top: 10px;
                 font-weight: bold;
@@ -1138,6 +1208,223 @@ def read_root():
             </div>
 
             <div id="walk-forward-error"></div>
+
+            <h2 class="section-title">
+                Trade Analytics
+            </h2>
+
+            <div class="optimizer-toolbar">
+                <button
+                    class="btn-backtest"
+                    onclick="loadTradeAnalytics()"
+                >
+                    Load Trade History
+                </button>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Closed Trades
+                    </div>
+                    <div
+                        id="trade-closed-count"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Win Rate
+                    </div>
+                    <div
+                        id="trade-win-rate"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Realized Net P&amp;L
+                    </div>
+                    <div
+                        id="trade-net-pnl"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Profit Factor
+                    </div>
+                    <div
+                        id="trade-profit-factor"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Avg Trade Return
+                    </div>
+                    <div
+                        id="trade-average-return"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Avg Holding Period
+                    </div>
+                    <div
+                        id="trade-average-holding"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Total Fees
+                    </div>
+                    <div
+                        id="trade-total-fees"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Slippage Cost
+                    </div>
+                    <div
+                        id="trade-slippage-cost"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="section-title">
+                Open Position
+            </h3>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Entry Date
+                    </div>
+                    <div
+                        id="position-entry-date"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Entry Price
+                    </div>
+                    <div
+                        id="position-entry-price"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Current Price
+                    </div>
+                    <div
+                        id="position-current-price"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Unrealized P&amp;L
+                    </div>
+                    <div
+                        id="position-unrealized-pnl"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Unrealized Return
+                    </div>
+                    <div
+                        id="position-unrealized-return"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Holding Days
+                    </div>
+                    <div
+                        id="position-holding-days"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="section-title">
+                Trade History
+            </h3>
+
+            <div class="optimizer-table-wrapper">
+                <table class="optimizer-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Entry</th>
+                            <th>Exit</th>
+                            <th>Days</th>
+                            <th>Entry Price</th>
+                            <th>Exit Price</th>
+                            <th>Return</th>
+                            <th>Net P&amp;L</th>
+                            <th>Fees</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="trade-history-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="trade-analytics-error"></div>
         </div>
 
         <script>
@@ -2047,6 +2334,331 @@ def read_root():
                 .catch(error => {
                     errorBox.innerText =
                         'Walk-Forward Hatası: '
+                        + error.message;
+                });
+            }
+
+
+            // --- TRADE ANALYTICS ---
+
+            function loadTradeAnalytics() {
+                const token =
+                    localStorage.getItem(
+                        'quant_token'
+                    );
+
+                const initialCapital =
+                    Number(
+                        document.getElementById(
+                            'initial-capital'
+                        ).value
+                    );
+
+                const transactionFee =
+                    Number(
+                        document.getElementById(
+                            'transaction-fee'
+                        ).value
+                    );
+
+                const slippage =
+                    Number(
+                        document.getElementById(
+                            'slippage'
+                        ).value
+                    );
+
+                const errorBox =
+                    document.getElementById(
+                        'trade-analytics-error'
+                    );
+
+                errorBox.innerText = '';
+
+                const params =
+                    new URLSearchParams({
+                        initial_capital:
+                            String(initialCapital),
+                        transaction_fee_pct:
+                            String(transactionFee),
+                        slippage_pct:
+                            String(slippage),
+                        force_close_at_end:
+                            'false'
+                    });
+
+                fetch(
+                    '/api/trades?'
+                    + params.toString(),
+                    {
+                        headers: {
+                            'Authorization':
+                                'Bearer ' + token
+                        }
+                    }
+                )
+                .then(response => {
+                    if (response.status === 401) {
+                        logout();
+
+                        throw new Error(
+                            'Oturum süresi doldu.'
+                        );
+                    }
+
+                    if (!response.ok) {
+                        return response
+                            .json()
+                            .then(body => {
+                                throw new Error(
+                                    body.detail
+                                    || 'Trade Analytics API hatası'
+                                );
+                            });
+                    }
+
+                    return response.json();
+                })
+                .then(data => {
+                    const summary = data.summary;
+
+                    document.getElementById(
+                        'trade-closed-count'
+                    ).innerText =
+                        summary.closed_trades;
+
+
+                    const winRate =
+                        document.getElementById(
+                            'trade-win-rate'
+                        );
+
+                    winRate.innerText =
+                        Number(
+                            summary.win_rate_pct
+                        ).toFixed(2)
+                        + '%';
+
+
+                    const netPnl =
+                        document.getElementById(
+                            'trade-net-pnl'
+                        );
+
+                    netPnl.innerText =
+                        '$'
+                        + Number(
+                            summary.total_net_pnl
+                        ).toFixed(2);
+
+                    setMetricTrend(
+                        'trade-net-pnl',
+                        summary.total_net_pnl
+                    );
+
+
+                    document.getElementById(
+                        'trade-profit-factor'
+                    ).innerText =
+                        summary.profit_factor === null
+                        ? 'N/A'
+                        : Number(
+                            summary.profit_factor
+                        ).toFixed(3);
+
+
+                    const avgReturn =
+                        document.getElementById(
+                            'trade-average-return'
+                        );
+
+                    avgReturn.innerText =
+                        formatPercent(
+                            summary.average_trade_return_pct
+                        );
+
+                    setMetricTrend(
+                        'trade-average-return',
+                        summary.average_trade_return_pct
+                    );
+
+
+                    document.getElementById(
+                        'trade-average-holding'
+                    ).innerText =
+                        Number(
+                            summary.average_holding_days
+                        ).toFixed(1)
+                        + ' days';
+
+
+                    document.getElementById(
+                        'trade-total-fees'
+                    ).innerText =
+                        '$'
+                        + Number(
+                            summary.total_fees
+                        ).toFixed(2);
+
+
+                    document.getElementById(
+                        'trade-slippage-cost'
+                    ).innerText =
+                        '$'
+                        + Number(
+                            summary.total_slippage_cost
+                        ).toFixed(2);
+
+
+                    const position =
+                        data.open_position;
+
+                    if (position) {
+                        document.getElementById(
+                            'position-entry-date'
+                        ).innerText =
+                            position.entry_date;
+
+                        document.getElementById(
+                            'position-entry-price'
+                        ).innerText =
+                            '$'
+                            + Number(
+                                position.market_entry_price
+                            ).toFixed(2);
+
+                        document.getElementById(
+                            'position-current-price'
+                        ).innerText =
+                            '$'
+                            + Number(
+                                position.current_market_price
+                            ).toFixed(2);
+
+                        const pnl =
+                            document.getElementById(
+                                'position-unrealized-pnl'
+                            );
+
+                        pnl.innerText =
+                            '$'
+                            + Number(
+                                position.unrealized_pnl
+                            ).toFixed(2);
+
+                        setMetricTrend(
+                            'position-unrealized-pnl',
+                            position.unrealized_pnl
+                        );
+
+                        const positionReturn =
+                            document.getElementById(
+                                'position-unrealized-return'
+                            );
+
+                        positionReturn.innerText =
+                            formatPercent(
+                                position.unrealized_return_pct
+                            );
+
+                        setMetricTrend(
+                            'position-unrealized-return',
+                            position.unrealized_return_pct
+                        );
+
+                        document.getElementById(
+                            'position-holding-days'
+                        ).innerText =
+                            position.holding_days
+                            + ' days';
+                    } else {
+                        document.getElementById(
+                            'position-entry-date'
+                        ).innerText = 'None';
+
+                        document.getElementById(
+                            'position-entry-price'
+                        ).innerText = '--';
+
+                        document.getElementById(
+                            'position-current-price'
+                        ).innerText = '--';
+
+                        document.getElementById(
+                            'position-unrealized-pnl'
+                        ).innerText = '$0.00';
+
+                        document.getElementById(
+                            'position-unrealized-return'
+                        ).innerText = '0.00%';
+
+                        document.getElementById(
+                            'position-holding-days'
+                        ).innerText = '0 days';
+                    }
+
+
+                    const tbody =
+                        document.getElementById(
+                            'trade-history-body'
+                        );
+
+                    tbody.innerHTML = '';
+
+                    data.trades.forEach(trade => {
+                        const tr =
+                            document.createElement(
+                                'tr'
+                            );
+
+                        tr.innerHTML =
+                            '<td>'
+                            + trade.trade_number
+                            + '</td>'
+                            + '<td>'
+                            + trade.entry_date
+                            + '</td>'
+                            + '<td>'
+                            + trade.exit_date
+                            + '</td>'
+                            + '<td>'
+                            + trade.holding_days
+                            + '</td>'
+                            + '<td>$'
+                            + Number(
+                                trade.market_entry_price
+                            ).toFixed(2)
+                            + '</td>'
+                            + '<td>$'
+                            + Number(
+                                trade.market_exit_price
+                            ).toFixed(2)
+                            + '</td>'
+                            + '<td>'
+                            + formatPercent(
+                                trade.return_pct
+                            )
+                            + '</td>'
+                            + '<td>$'
+                            + Number(
+                                trade.net_pnl
+                            ).toFixed(2)
+                            + '</td>'
+                            + '<td>$'
+                            + Number(
+                                trade.total_fees
+                            ).toFixed(2)
+                            + '</td>'
+                            + '<td>'
+                            + trade.result
+                            + '</td>';
+
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(error => {
+                    errorBox.innerText =
+                        'Trade Analytics Hatası: '
                         + error.message;
                 });
             }
