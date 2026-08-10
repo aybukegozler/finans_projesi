@@ -23,7 +23,14 @@ from src.database import (
 from src.backtest import run_backtest
 from src.optimizer import optimize_sma_strategy
 from src.walk_forward import walk_forward_validate
+from fastapi import WebSocket as FastAPIWebSocket, WebSocketDisconnect as FastAPIWebSocketDisconnect
 from src.trade_analytics import analyze_trades
+from src.binance_market import (
+    get_klines,
+    normalize_symbol,
+    stream_klines,
+    validate_interval,
+)
 
 # --- UYGULAMA VE GÜVENLİK AYARLARI ---
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -510,6 +517,136 @@ def trade_analytics(
         "slippage_pct": slippage_pct,
         **result,
     }
+
+
+# Binance Historical Market Data
+@app.get("/api/market/klines")
+def market_klines(
+    symbol: str = "BTCUSDT",
+    interval: str = "1m",
+    limit: int = 500,
+    current_user = Depends(get_current_user),
+):
+    try:
+        normalized_symbol = normalize_symbol(
+            symbol
+        )
+
+        validated_interval = validate_interval(
+            interval
+        )
+
+        candles = get_klines(
+            symbol=normalized_symbol,
+            interval=validated_interval,
+            limit=limit,
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+
+    except Exception as error:
+        print(
+            "Binance REST hatası:",
+            type(error).__name__,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Binance market verisine ulaşılamadı.",
+        ) from error
+
+    return {
+        "source": "Binance Spot",
+        "symbol": normalized_symbol,
+        "interval": validated_interval,
+        "count": len(candles),
+        "candles": candles,
+    }
+
+
+# Binance Live Market WebSocket
+@app.websocket("/ws/market/{symbol}")
+async def market_websocket(
+    websocket: FastAPIWebSocket,
+    symbol: str,
+    interval: str = "1m",
+):
+    await websocket.accept()
+
+    try:
+        normalized_symbol = normalize_symbol(
+            symbol
+        )
+
+        validated_interval = validate_interval(
+            interval
+        )
+
+    except ValueError as error:
+        await websocket.send_json(
+            {
+                "type": "error",
+                "detail": str(error),
+            }
+        )
+
+        await websocket.close(
+            code=1008
+        )
+
+        return
+
+    await websocket.send_json(
+        {
+            "type": "connected",
+            "source": "Binance Spot",
+            "symbol": normalized_symbol,
+            "interval": validated_interval,
+        }
+    )
+
+    try:
+        async for kline in stream_klines(
+            symbol=normalized_symbol,
+            interval=validated_interval,
+        ):
+            await websocket.send_json(
+                {
+                    "type": "kline",
+                    "data": kline,
+                }
+            )
+
+    except FastAPIWebSocketDisconnect:
+        return
+
+    except Exception as error:
+        print(
+            "Market WebSocket hatası:",
+            type(error).__name__,
+        )
+
+        try:
+            await websocket.send_json(
+                {
+                    "type": "error",
+                    "detail": (
+                        "Binance canlı bağlantısı "
+                        "geçici olarak kullanılamıyor."
+                    ),
+                }
+            )
+
+            await websocket.close(
+                code=1011
+            )
+
+        except Exception:
+            pass
 
 
 # 3. Ön Yüz (Frontend)

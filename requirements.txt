@@ -6,3 +6,4 @@ bcrypt==5.0.0
 python-jose[cryptography]==3.5.0
 python-multipart==0.0.32
 psycopg[binary]==3.3.4
+websockets==17.0.1

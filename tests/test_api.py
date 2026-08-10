@@ -595,3 +595,224 @@ def test_trade_analytics_rejects_invalid_cost(
     )
 
     assert response.status_code == 400
+
+
+def test_market_klines_requires_authentication(
+    client,
+):
+    response = client.get(
+        "/api/market/klines"
+    )
+
+    assert response.status_code == 401
+
+
+def test_authenticated_user_can_get_market_klines(
+    client,
+    monkeypatch,
+):
+    def fake_get_klines(
+        symbol,
+        interval,
+        limit,
+    ):
+        assert symbol == "BTCUSDT"
+        assert interval == "1m"
+        assert limit == 2
+
+        return [
+            {
+                "open_time":
+                    "2026-08-10T06:00:00+00:00",
+
+                "open_time_ms":
+                    1786341600000,
+
+                "open":
+                    100.0,
+
+                "high":
+                    110.0,
+
+                "low":
+                    95.0,
+
+                "close":
+                    105.0,
+
+                "volume":
+                    10.0,
+
+                "close_time_ms":
+                    1786341659999,
+
+                "quote_volume":
+                    1030.0,
+
+                "trade_count":
+                    25,
+            },
+            {
+                "open_time":
+                    "2026-08-10T06:01:00+00:00",
+
+                "open_time_ms":
+                    1786341660000,
+
+                "open":
+                    105.0,
+
+                "high":
+                    112.0,
+
+                "low":
+                    103.0,
+
+                "close":
+                    108.0,
+
+                "volume":
+                    12.0,
+
+                "close_time_ms":
+                    1786341719999,
+
+                "quote_volume":
+                    1290.0,
+
+                "trade_count":
+                    30,
+            },
+        ]
+
+    monkeypatch.setattr(
+        "src.api.get_klines",
+        fake_get_klines,
+    )
+
+    login_response = login(
+        client,
+        os.environ["USER_USERNAME"],
+        os.environ["USER_PASSWORD"],
+    )
+
+    response = client.get(
+        (
+            "/api/market/klines"
+            "?symbol=btc/usdt"
+            "&interval=1m"
+            "&limit=2"
+        ),
+        headers=auth_header(
+            login_response["access_token"]
+        ),
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["source"] == "Binance Spot"
+    assert body["symbol"] == "BTCUSDT"
+    assert body["interval"] == "1m"
+    assert body["count"] == 2
+
+    assert (
+        body["candles"][0]["close"]
+        == 105.0
+    )
+
+
+def test_market_klines_rejects_invalid_interval(
+    client,
+):
+    login_response = login(
+        client,
+        os.environ["USER_USERNAME"],
+        os.environ["USER_PASSWORD"],
+    )
+
+    response = client.get(
+        (
+            "/api/market/klines"
+            "?symbol=BTCUSDT"
+            "&interval=7minutes"
+        ),
+        headers=auth_header(
+            login_response["access_token"]
+        ),
+    )
+
+    assert response.status_code == 400
+
+
+def test_live_market_websocket(
+    client,
+    monkeypatch,
+):
+    async def fake_stream_klines(
+        symbol,
+        interval,
+    ):
+        assert symbol == "BTCUSDT"
+        assert interval == "1m"
+
+        yield {
+            "event": "kline",
+            "symbol": "BTCUSDT",
+            "event_time_ms": 1786341601000,
+            "event_time":
+                "2026-08-10T06:00:01+00:00",
+            "interval": "1m",
+            "open_time_ms": 1786341600000,
+            "close_time_ms": 1786341659999,
+            "open": 100.0,
+            "high": 110.0,
+            "low": 95.0,
+            "close": 105.0,
+            "volume": 10.5,
+            "quote_volume": 1075.0,
+            "trade_count": 42,
+            "closed": False,
+        }
+
+    monkeypatch.setattr(
+        "src.api.stream_klines",
+        fake_stream_klines,
+    )
+
+    with client.websocket_connect(
+        "/ws/market/BTCUSDT?interval=1m"
+    ) as websocket:
+        connected = (
+            websocket.receive_json()
+        )
+
+        assert (
+            connected["type"]
+            == "connected"
+        )
+
+        assert (
+            connected["symbol"]
+            == "BTCUSDT"
+        )
+
+        message = (
+            websocket.receive_json()
+        )
+
+        assert (
+            message["type"]
+            == "kline"
+        )
+
+        assert (
+            message["data"]["close"]
+            == 105.0
+        )
+
+        assert (
+            message["data"]["trade_count"]
+            == 42
+        )
