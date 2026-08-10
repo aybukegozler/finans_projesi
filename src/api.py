@@ -26,6 +26,7 @@ from src.walk_forward import walk_forward_validate
 from fastapi import WebSocket as FastAPIWebSocket, WebSocketDisconnect as FastAPIWebSocketDisconnect
 from src.trade_analytics import analyze_trades
 from src.live_signal import LiveSMAEngine
+from src.technical_indicators import calculate_technical_snapshot
 from src.binance_market import (
     get_klines,
     get_24h_ticker,
@@ -689,6 +690,16 @@ async def market_websocket(
             )
         )
 
+        technical_snapshot = (
+            calculate_technical_snapshot(
+                [
+                    candle["close"]
+                    for candle
+                    in engine.candles
+                ]
+            )
+        )
+
     except Exception as error:
         print(
             "Live SMA seed hatası:",
@@ -719,6 +730,9 @@ async def market_websocket(
             "interval": validated_interval,
             "indicators":
                 indicator_snapshot,
+
+            "technical":
+                technical_snapshot,
         }
     )
 
@@ -733,12 +747,25 @@ async def market_websocket(
                 )
             )
 
+            technical_snapshot = (
+                calculate_technical_snapshot(
+                    [
+                        candle["close"]
+                        for candle
+                        in engine.candles
+                    ]
+                )
+            )
+
             await websocket.send_json(
                 {
                     "type": "kline",
                     "data": kline,
                     "indicators":
                         indicators,
+
+                    "technical":
+                        technical_snapshot,
                 }
             )
 
@@ -1534,6 +1561,132 @@ def read_root():
                         class="metric-value metric-neutral"
                     >
                         NONE
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="section-title">
+                Live Technical Analysis
+            </h3>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">
+                        RSI 14
+                    </div>
+                    <div
+                        id="live-rsi14"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        MACD
+                    </div>
+                    <div
+                        id="live-macd"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        MACD Signal
+                    </div>
+                    <div
+                        id="live-macd-signal"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        MACD Histogram
+                    </div>
+                    <div
+                        id="live-macd-histogram"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        BB Upper
+                    </div>
+                    <div
+                        id="live-bb-upper"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        BB Middle
+                    </div>
+                    <div
+                        id="live-bb-middle"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        BB Lower
+                    </div>
+                    <div
+                        id="live-bb-lower"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        BB Width
+                    </div>
+                    <div
+                        id="live-bb-width"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Technical Score
+                    </div>
+                    <div
+                        id="live-technical-score"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Technical Rating
+                    </div>
+                    <div
+                        id="live-technical-rating"
+                        class="metric-value metric-neutral"
+                    >
+                        NEUTRAL
                     </div>
                 </div>
             </div>
@@ -3495,6 +3648,9 @@ def read_root():
             let liveSma20Series = null;
             let liveSma50Series = null;
             let liveVolumeSeries = null;
+            let liveBbUpperSeries = null;
+            let liveBbMiddleSeries = null;
+            let liveBbLowerSeries = null;
             let liveSignalMarkers = [];
             let liveProvisionalMarker = null;
             let liveSignalHistory = [];
@@ -3629,6 +3785,39 @@ def read_root():
                         }
                     );
 
+                liveBbUpperSeries =
+                    liveMarketChart.addLineSeries(
+                        {
+                            color:
+                                'rgba(171, 71, 188, 0.70)',
+                            lineWidth: 1,
+                            priceLineVisible: false,
+                            lastValueVisible: false
+                        }
+                    );
+
+                liveBbMiddleSeries =
+                    liveMarketChart.addLineSeries(
+                        {
+                            color:
+                                'rgba(171, 71, 188, 0.35)',
+                            lineWidth: 1,
+                            priceLineVisible: false,
+                            lastValueVisible: false
+                        }
+                    );
+
+                liveBbLowerSeries =
+                    liveMarketChart.addLineSeries(
+                        {
+                            color:
+                                'rgba(171, 71, 188, 0.70)',
+                            lineWidth: 1,
+                            priceLineVisible: false,
+                            lastValueVisible: false
+                        }
+                    );
+
                 liveVolumeSeries =
                     liveMarketChart.addHistogramSeries(
                         {
@@ -3670,6 +3859,99 @@ def read_root():
                         }
                     }
                 );
+            }
+
+
+            function calculateBollingerSeries(
+                candles,
+                windowSize = 20,
+                deviations = 2
+            ) {
+                const upper = [];
+                const middle = [];
+                const lower = [];
+
+                for (
+                    let index =
+                        windowSize - 1;
+                    index < candles.length;
+                    index += 1
+                ) {
+                    const values =
+                        candles
+                        .slice(
+                            index
+                            - windowSize
+                            + 1,
+                            index + 1
+                        )
+                        .map(
+                            candle =>
+                                candle.close
+                        );
+
+                    const average =
+                        values.reduce(
+                            (total, value) =>
+                                total + value,
+                            0
+                        )
+                        / windowSize;
+
+                    const variance =
+                        values.reduce(
+                            (total, value) =>
+                                total
+                                + Math.pow(
+                                    value
+                                    - average,
+                                    2
+                                ),
+                            0
+                        )
+                        / windowSize;
+
+                    const deviation =
+                        Math.sqrt(
+                            variance
+                        );
+
+                    const time =
+                        candles[index].time;
+
+                    middle.push(
+                        {
+                            time: time,
+                            value: average
+                        }
+                    );
+
+                    upper.push(
+                        {
+                            time: time,
+                            value:
+                                average
+                                + deviations
+                                * deviation
+                        }
+                    );
+
+                    lower.push(
+                        {
+                            time: time,
+                            value:
+                                average
+                                - deviations
+                                * deviation
+                        }
+                    );
+                }
+
+                return {
+                    upper: upper,
+                    middle: middle,
+                    lower: lower
+                };
             }
 
 
@@ -4084,6 +4366,25 @@ def read_root():
                     )
                 );
 
+                const bollinger =
+                    calculateBollingerSeries(
+                        candles,
+                        20,
+                        2
+                    );
+
+                liveBbUpperSeries.setData(
+                    bollinger.upper
+                );
+
+                liveBbMiddleSeries.setData(
+                    bollinger.middle
+                );
+
+                liveBbLowerSeries.setData(
+                    bollinger.lower
+                );
+
                 if (candles.length > 0) {
                     const last =
                         candles[
@@ -4125,6 +4426,219 @@ def read_root():
                 liveMarketChart
                     .timeScale()
                     .fitContent();
+            }
+
+
+            function updateLiveTechnicalAnalysis(
+                technical,
+                candleTime = null
+            ) {
+                if (
+                    !technical
+                    || !technical.ready
+                ) {
+                    return;
+                }
+
+                document.getElementById(
+                    'live-rsi14'
+                ).innerText =
+                    Number(
+                        technical.rsi14
+                    ).toFixed(2);
+
+
+                document.getElementById(
+                    'live-macd'
+                ).innerText =
+                    Number(
+                        technical.macd.macd
+                    ).toFixed(4);
+
+
+                document.getElementById(
+                    'live-macd-signal'
+                ).innerText =
+                    Number(
+                        technical.macd.signal
+                    ).toFixed(4);
+
+
+                const histogram =
+                    Number(
+                        technical.macd.histogram
+                    );
+
+                document.getElementById(
+                    'live-macd-histogram'
+                ).innerText =
+                    (
+                        histogram >= 0
+                        ? '+'
+                        : ''
+                    )
+                    + histogram.toFixed(4);
+
+                setMetricTrend(
+                    'live-macd-histogram',
+                    histogram
+                );
+
+
+                const bb =
+                    technical.bollinger;
+
+                document.getElementById(
+                    'live-bb-upper'
+                ).innerText =
+                    formatMarketPrice(
+                        bb.upper
+                    );
+
+                document.getElementById(
+                    'live-bb-middle'
+                ).innerText =
+                    formatMarketPrice(
+                        bb.middle
+                    );
+
+                document.getElementById(
+                    'live-bb-lower'
+                ).innerText =
+                    formatMarketPrice(
+                        bb.lower
+                    );
+
+                document.getElementById(
+                    'live-bb-width'
+                ).innerText =
+                    Number(
+                        bb.bandwidth_pct
+                    ).toFixed(4)
+                    + '%';
+
+
+                const score =
+                    Number(
+                        technical.score
+                    );
+
+                const scoreElement =
+                    document.getElementById(
+                        'live-technical-score'
+                    );
+
+                scoreElement.innerText =
+                    (
+                        score > 0
+                        ? '+'
+                        : ''
+                    )
+                    + score
+                    + ' / '
+                    + technical.max_score;
+
+                setMetricTrend(
+                    'live-technical-score',
+                    score
+                );
+
+
+                const rating =
+                    document.getElementById(
+                        'live-technical-rating'
+                    );
+
+                const displayRating =
+                    technical.rating.replace(
+                        '_',
+                        ' '
+                    );
+
+                rating.innerText =
+                    displayRating;
+
+                rating.className =
+                    'metric-value '
+                    + (
+                        technical.rating
+                        === 'BUY'
+                        || technical.rating
+                        === 'STRONG_BUY'
+                        ? 'metric-positive'
+                        : (
+                            technical.rating
+                            === 'SELL'
+                            || technical.rating
+                            === 'STRONG_SELL'
+                            ? 'metric-negative'
+                            : 'metric-neutral'
+                        )
+                    );
+
+
+                const rsi =
+                    Number(
+                        technical.rsi14
+                    );
+
+                const rsiElement =
+                    document.getElementById(
+                        'live-rsi14'
+                    );
+
+                rsiElement.className =
+                    'metric-value '
+                    + (
+                        rsi >= 70
+                        ? 'metric-negative'
+                        : (
+                            rsi <= 30
+                            ? 'metric-positive'
+                            : 'metric-neutral'
+                        )
+                    );
+
+
+                if (
+                    candleTime !== null
+                ) {
+                    liveBbUpperSeries.update(
+                        {
+                            time:
+                                candleTime,
+
+                            value:
+                                Number(
+                                    bb.upper
+                                )
+                        }
+                    );
+
+                    liveBbMiddleSeries.update(
+                        {
+                            time:
+                                candleTime,
+
+                            value:
+                                Number(
+                                    bb.middle
+                                )
+                        }
+                    );
+
+                    liveBbLowerSeries.update(
+                        {
+                            time:
+                                candleTime,
+
+                            value:
+                                Number(
+                                    bb.lower
+                                )
+                        }
+                    );
+                }
             }
 
 
@@ -4763,6 +5277,10 @@ def read_root():
                                 message.indicators
                             );
 
+                            updateLiveTechnicalAnalysis(
+                                message.technical
+                            );
+
                             return;
                         }
 
@@ -4824,6 +5342,11 @@ def read_root():
 
                         updateLiveIndicators(
                             message.indicators,
+                            candleTime
+                        );
+
+                        updateLiveTechnicalAnalysis(
+                            message.technical,
                             candleTime
                         );
 

@@ -289,6 +289,16 @@ def test_frontend_contains_backtest_dashboard(
     assert "arrowDown" in html
     assert 'id="live-signal-history"' in html
     assert 'id="live-signal-toast"' in html
+    assert 'id="live-rsi14"' in html
+    assert 'id="live-macd"' in html
+    assert 'id="live-macd-histogram"' in html
+    assert 'id="live-bb-upper"' in html
+    assert 'id="live-bb-middle"' in html
+    assert 'id="live-bb-lower"' in html
+    assert 'id="live-technical-score"' in html
+    assert 'id="live-technical-rating"' in html
+    assert "calculateBollingerSeries" in html
+    assert "updateLiveTechnicalAnalysis" in html
     assert "renderLiveSignalHistory" in html
     assert "recordConfirmedCrossover" in html
     assert "showLiveSignalToast" in html
@@ -944,6 +954,33 @@ def test_live_market_websocket(
                 "last_crossover"
             ]
             is None
+        )
+
+        assert (
+            message["technical"][
+                "ready"
+            ]
+            is True
+        )
+
+        assert (
+            "rsi14"
+            in message["technical"]
+        )
+
+        assert (
+            "macd"
+            in message["technical"]
+        )
+
+        assert (
+            "bollinger"
+            in message["technical"]
+        )
+
+        assert (
+            "rating"
+            in message["technical"]
         )
 
 
