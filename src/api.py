@@ -3293,6 +3293,8 @@ def read_root():
             let liveSma20Series = null;
             let liveSma50Series = null;
             let liveVolumeSeries = null;
+            let liveSignalMarkers = [];
+            let liveProvisionalMarker = null;
             let liveLastClose = null;
             let live24hStatsTimer = null;
             let liveReconnectTimer = null;
@@ -3463,6 +3465,128 @@ def read_root():
                         }
                     }
                 );
+            }
+
+
+            function calculateCrossoverMarkers(
+                candles,
+                shortWindow = 20,
+                longWindow = 50
+            ) {
+                const markers = [];
+
+                if (
+                    candles.length
+                    <= longWindow
+                ) {
+                    return markers;
+                }
+
+                function averageRange(
+                    endIndex,
+                    windowSize
+                ) {
+                    let total = 0;
+
+                    for (
+                        let index =
+                            endIndex
+                            - windowSize
+                            + 1;
+                        index <= endIndex;
+                        index += 1
+                    ) {
+                        total +=
+                            candles[index].close;
+                    }
+
+                    return (
+                        total / windowSize
+                    );
+                }
+
+                for (
+                    let index = longWindow;
+                    index < candles.length;
+                    index += 1
+                ) {
+                    const previousShort =
+                        averageRange(
+                            index - 1,
+                            shortWindow
+                        );
+
+                    const previousLong =
+                        averageRange(
+                            index - 1,
+                            longWindow
+                        );
+
+                    const currentShort =
+                        averageRange(
+                            index,
+                            shortWindow
+                        );
+
+                    const currentLong =
+                        averageRange(
+                            index,
+                            longWindow
+                        );
+
+                    if (
+                        previousShort
+                        <= previousLong
+                        && currentShort
+                        > currentLong
+                    ) {
+                        markers.push(
+                            {
+                                time:
+                                    candles[index].time,
+
+                                position:
+                                    'belowBar',
+
+                                color:
+                                    '#00e676',
+
+                                shape:
+                                    'arrowUp',
+
+                                text:
+                                    'BUY'
+                            }
+                        );
+
+                    } else if (
+                        previousShort
+                        >= previousLong
+                        && currentShort
+                        < currentLong
+                    ) {
+                        markers.push(
+                            {
+                                time:
+                                    candles[index].time,
+
+                                position:
+                                    'aboveBar',
+
+                                color:
+                                    '#ff5252',
+
+                                shape:
+                                    'arrowDown',
+
+                                text:
+                                    'SELL'
+                            }
+                        );
+                    }
+                }
+
+                return markers;
             }
 
 
@@ -3691,6 +3815,19 @@ def read_root():
                     candles
                 );
 
+                liveSignalMarkers =
+                    calculateCrossoverMarkers(
+                        candles,
+                        20,
+                        50
+                    );
+
+                liveProvisionalMarker = null;
+
+                liveCandlestickSeries.setMarkers(
+                    liveSignalMarkers
+                );
+
                 const volumeData =
                     data.candles.map(
                         candle => {
@@ -3783,6 +3920,108 @@ def read_root():
                 liveMarketChart
                     .timeScale()
                     .fitContent();
+            }
+
+
+            function updateLiveCrossoverMarker(
+                indicators,
+                candleTime
+            ) {
+                if (
+                    !indicators
+                    || candleTime === null
+                ) {
+                    return;
+                }
+
+                const crossover =
+                    indicators.crossover;
+
+                if (
+                    crossover === 'HOLD'
+                ) {
+                    liveProvisionalMarker = null;
+
+                    liveCandlestickSeries.setMarkers(
+                        liveSignalMarkers
+                    );
+
+                    return;
+                }
+
+                const marker = {
+                    time: candleTime,
+
+                    position:
+                        crossover === 'BUY'
+                        ? 'belowBar'
+                        : 'aboveBar',
+
+                    color:
+                        crossover === 'BUY'
+                        ? '#00e676'
+                        : '#ff5252',
+
+                    shape:
+                        crossover === 'BUY'
+                        ? 'arrowUp'
+                        : 'arrowDown',
+
+                    text:
+                        crossover
+                        + (
+                            indicators.candle_closed
+                            ? ''
+                            : ' LIVE'
+                        )
+                };
+
+                if (
+                    indicators.candle_closed
+                ) {
+                    const alreadyExists =
+                        liveSignalMarkers.some(
+                            existing =>
+                                existing.time
+                                === marker.time
+                                && existing.text
+                                === crossover
+                        );
+
+                    if (!alreadyExists) {
+                        liveSignalMarkers.push(
+                            {
+                                ...marker,
+                                text: crossover
+                            }
+                        );
+
+                        liveSignalMarkers.sort(
+                            (a, b) =>
+                                a.time - b.time
+                        );
+                    }
+
+                    liveProvisionalMarker = null;
+
+                    liveCandlestickSeries.setMarkers(
+                        liveSignalMarkers
+                    );
+
+                } else {
+                    liveProvisionalMarker =
+                        marker;
+
+                    liveCandlestickSeries.setMarkers(
+                        [
+                            ...liveSignalMarkers,
+                            liveProvisionalMarker
+                        ].sort(
+                            (a, b) =>
+                                a.time - b.time
+                        )
+                    );
+                }
             }
 
 
@@ -3948,6 +4187,15 @@ def read_root():
                         'metric-value metric-neutral';
                 }
 
+
+                if (
+                    candleTime !== null
+                ) {
+                    updateLiveCrossoverMarker(
+                        indicators,
+                        candleTime
+                    );
+                }
 
                 if (
                     candleTime !== null

@@ -281,6 +281,12 @@ def test_frontend_contains_backtest_dashboard(
     assert "scheduleLiveMarketReconnect" in html
     assert "liveVolumeSeries" in html
     assert "addHistogramSeries" in html
+    assert "liveSignalMarkers" in html
+    assert "calculateCrossoverMarkers" in html
+    assert "updateLiveCrossoverMarker" in html
+    assert "setMarkers" in html
+    assert "arrowUp" in html
+    assert "arrowDown" in html
     assert "priceScaleId: 'volume'" in html
     assert "/api/market/ticker/24h" in html
     assert "startLiveMarket()" in html
