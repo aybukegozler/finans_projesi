@@ -505,3 +505,52 @@ Bu proje yazılım mühendisliği ve nicel finans eğitimi amacıyla hazırlanm�
 
 GitHub: [@aybukegozler](https://github.com/aybukegozler)
 
+
+---
+
+## Out-of-Sample Strategy Validation
+
+The SMA optimizer is evaluated with an expanding-window walk-forward validation process to reduce the risk of reporting an overfit historical result.
+
+### Current Validation Configuration
+
+```text
+Initial training rows : 250
+Test rows             : 50
+Optimization metric   : Sharpe Ratio
+Transaction fee       : 0.10%
+Slippage              : 0.05%
+```
+
+### In-Sample vs Out-of-Sample Results
+
+| Metric | In-Sample Optimization | Walk-Forward OOS |
+|---|---:|---:|
+| Strategy Return | +36.91% | +9.03% |
+| Benchmark Return | +49.12% | +48.08% |
+| Excess Return | -12.21% | -39.05% |
+| Selected SMA | SMA20 / SMA70 | SMA30 / SMA60 most frequently |
+| Sharpe Ratio | 1.073 | 1.092 average |
+| Median Test Sharpe | — | 0.000 |
+| Profitable Folds | — | 2 / 5 |
+| Closed Trades | — | 2 |
+| Zero-Trade Folds | — | 3 |
+
+### Interpretation
+
+The in-sample optimizer finds a substantially stronger historical SMA configuration than the original SMA20/SMA50 strategy. However, the improvement does not persist to the same degree on unseen data.
+
+The walk-forward result highlights several important quantitative-finance considerations:
+
+- Parameter optimization can overstate historical performance.
+- The optimal SMA parameters can change through time.
+- Transaction costs and slippage materially affect results.
+- Average Sharpe Ratio can be misleading when fold behavior is uneven.
+- Median fold statistics provide an additional robustness check.
+- Buy-and-hold remains the stronger benchmark for the current dataset.
+
+Open positions at the end of each out-of-sample fold are explicitly closed using the configured slippage and transaction costs before capital is carried into the next fold.
+
+This project therefore distinguishes between **in-sample optimization** and **out-of-sample validation** rather than presenting optimized historical performance as expected future performance.
+
+> Historical optimization and backtesting results are not predictions of future returns and do not constitute investment advice.
