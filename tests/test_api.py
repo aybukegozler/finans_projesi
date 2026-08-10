@@ -279,6 +279,9 @@ def test_frontend_contains_backtest_dashboard(
     assert 'id="live-24h-volume"' in html
     assert "load24hMarketStats" in html
     assert "scheduleLiveMarketReconnect" in html
+    assert "liveVolumeSeries" in html
+    assert "addHistogramSeries" in html
+    assert "priceScaleId: 'volume'" in html
     assert "/api/market/ticker/24h" in html
     assert "startLiveMarket()" in html
     assert "/api/market/klines" in html

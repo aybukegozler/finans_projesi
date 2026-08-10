@@ -3292,6 +3292,7 @@ def read_root():
             let liveCandlestickSeries = null;
             let liveSma20Series = null;
             let liveSma50Series = null;
+            let liveVolumeSeries = null;
             let liveLastClose = null;
             let live24hStatsTimer = null;
             let liveReconnectTimer = null;
@@ -3418,6 +3419,31 @@ def read_root():
                             lineWidth: 2,
                             priceLineVisible: false,
                             lastValueVisible: true
+                        }
+                    );
+
+                liveVolumeSeries =
+                    liveMarketChart.addHistogramSeries(
+                        {
+                            priceFormat: {
+                                type: 'volume'
+                            },
+
+                            priceScaleId: 'volume',
+
+                            priceLineVisible: false,
+                            lastValueVisible: false
+                        }
+                    );
+
+                liveVolumeSeries
+                    .priceScale()
+                    .applyOptions(
+                        {
+                            scaleMargins: {
+                                top: 0.78,
+                                bottom: 0
+                            }
                         }
                     );
 
@@ -3663,6 +3689,43 @@ def read_root():
 
                 liveCandlestickSeries.setData(
                     candles
+                );
+
+                const volumeData =
+                    data.candles.map(
+                        candle => {
+                            const open =
+                                Number(
+                                    candle.open
+                                );
+
+                            const close =
+                                Number(
+                                    candle.close
+                                );
+
+                            return {
+                                time:
+                                    Math.floor(
+                                        candle.open_time_ms
+                                        / 1000
+                                    ),
+
+                                value:
+                                    Number(
+                                        candle.volume
+                                    ),
+
+                                color:
+                                    close >= open
+                                    ? 'rgba(0, 230, 118, 0.45)'
+                                    : 'rgba(255, 82, 82, 0.45)'
+                            };
+                        }
+                    );
+
+                liveVolumeSeries.setData(
+                    volumeData
                 );
 
                 liveSma20Series.setData(
@@ -4083,6 +4146,26 @@ def read_root():
                         updateLiveIndicators(
                             message.indicators,
                             candleTime
+                        );
+
+                        liveVolumeSeries.update(
+                            {
+                                time:
+                                    candleTime,
+
+                                value:
+                                    Number(
+                                        candle.volume
+                                    ),
+
+                                color:
+                                    close
+                                    >= Number(
+                                        candle.open
+                                    )
+                                    ? 'rgba(0, 230, 118, 0.45)'
+                                    : 'rgba(255, 82, 82, 0.45)'
+                            }
                         );
 
                         const priceElement =
