@@ -261,6 +261,14 @@ def test_frontend_contains_backtest_dashboard(
     assert 'id="trade-history-body"' in html
     assert "loadTradeAnalytics()" in html
     assert "/api/trades" in html
+    assert 'id="live-market-symbol"' in html
+    assert 'id="live-market-interval"' in html
+    assert 'id="live-market-status"' in html
+    assert 'id="live-price"' in html
+    assert 'id="live-market-chart"' in html
+    assert "startLiveMarket()" in html
+    assert "/api/market/klines" in html
+    assert "/ws/market/" in html
     assert "loadBacktestData()" in html
     assert "/api/backtest" in html
 

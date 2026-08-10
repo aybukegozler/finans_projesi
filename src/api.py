@@ -865,6 +865,70 @@ def read_root():
                 border-bottom: none;
             }
 
+            .live-market-toolbar {
+                display: flex;
+                align-items: end;
+                gap: 14px;
+                flex-wrap: wrap;
+                margin-bottom: 18px;
+            }
+
+            .live-market-toolbar select {
+                min-width: 150px;
+                padding: 10px 12px;
+                background: #1E222D;
+                color: #ffffff;
+                border: 1px solid #434651;
+                border-radius: 6px;
+                outline: none;
+            }
+
+            .live-market-status {
+                padding: 10px 14px;
+                border-radius: 7px;
+                font-weight: 800;
+                letter-spacing: 0.5px;
+            }
+
+            .live-market-status.connected {
+                color: #00e676;
+                background: rgba(0, 230, 118, 0.08);
+                border: 1px solid rgba(0, 230, 118, 0.25);
+            }
+
+            .live-market-status.connecting {
+                color: #ffca28;
+                background: rgba(255, 202, 40, 0.08);
+                border: 1px solid rgba(255, 202, 40, 0.25);
+            }
+
+            .live-market-status.disconnected {
+                color: #ff5252;
+                background: rgba(255, 82, 82, 0.08);
+                border: 1px solid rgba(255, 82, 82, 0.25);
+            }
+
+            .live-chart-card {
+                background: #1E222D;
+                border: 1px solid #2B2B43;
+                border-radius: 12px;
+                overflow: hidden;
+                margin-top: 18px;
+                margin-bottom: 24px;
+            }
+
+            .live-market-chart {
+                width: 100%;
+                height: 480px;
+            }
+
+            #live-market-error {
+                color: #FF5252;
+                margin-top: 10px;
+                font-weight: bold;
+            }
+
+
             #optimizer-error,
             #walk-forward-error,
             #trade-analytics-error {
@@ -900,6 +964,168 @@ def read_root():
             </div>
             <div id="chart-container"></div>
             <div id="error-box"></div>
+
+            <h2 class="section-title">
+                Live Market
+            </h2>
+
+            <div class="live-market-toolbar">
+                <div class="backtest-control">
+                    <label for="live-market-symbol">
+                        Symbol
+                    </label>
+
+                    <select id="live-market-symbol">
+                        <option value="BTCUSDT">
+                            BTC / USDT
+                        </option>
+                        <option value="ETHUSDT">
+                            ETH / USDT
+                        </option>
+                        <option value="BNBUSDT">
+                            BNB / USDT
+                        </option>
+                        <option value="SOLUSDT">
+                            SOL / USDT
+                        </option>
+                    </select>
+                </div>
+
+                <div class="backtest-control">
+                    <label for="live-market-interval">
+                        Interval
+                    </label>
+
+                    <select id="live-market-interval">
+                        <option value="1m">1m</option>
+                        <option value="5m">5m</option>
+                        <option value="15m">15m</option>
+                        <option value="1h">1h</option>
+                    </select>
+                </div>
+
+                <button
+                    class="btn-backtest"
+                    onclick="startLiveMarket()"
+                >
+                    Connect Market
+                </button>
+
+                <div
+                    id="live-market-status"
+                    class="live-market-status disconnected"
+                >
+                    ● OFFLINE
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Symbol
+                    </div>
+                    <div
+                        id="live-symbol"
+                        class="metric-value metric-neutral"
+                    >
+                        BTCUSDT
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Live Price
+                    </div>
+                    <div
+                        id="live-price"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Open
+                    </div>
+                    <div
+                        id="live-open"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        High
+                    </div>
+                    <div
+                        id="live-high"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Low
+                    </div>
+                    <div
+                        id="live-low"
+                        class="metric-value"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Volume
+                    </div>
+                    <div
+                        id="live-volume"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Trades
+                    </div>
+                    <div
+                        id="live-trade-count"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">
+                        Candle
+                    </div>
+                    <div
+                        id="live-candle-status"
+                        class="metric-value metric-neutral"
+                    >
+                        --
+                    </div>
+                </div>
+            </div>
+
+            <div class="live-chart-card">
+                <div
+                    id="live-market-chart"
+                    class="live-market-chart"
+                ></div>
+            </div>
+
+            <div id="live-market-error"></div>
+
 
             <h2 class="section-title">
                 Strategy Backtest
@@ -2798,6 +3024,517 @@ def read_root():
                         'Trade Analytics Hatası: '
                         + error.message;
                 });
+            }
+
+
+            // --- BINANCE LIVE MARKET ---
+
+            let liveMarketSocket = null;
+            let liveMarketChart = null;
+            let liveCandlestickSeries = null;
+            let liveLastClose = null;
+
+
+            function formatMarketPrice(value) {
+                const number = Number(value);
+
+                if (!Number.isFinite(number)) {
+                    return '--';
+                }
+
+                if (number >= 1000) {
+                    return '$'
+                        + number.toLocaleString(
+                            undefined,
+                            {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }
+                        );
+                }
+
+                return '$'
+                    + number.toLocaleString(
+                        undefined,
+                        {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 6
+                        }
+                    );
+            }
+
+
+            function setLiveMarketStatus(
+                state,
+                text
+            ) {
+                const element =
+                    document.getElementById(
+                        'live-market-status'
+                    );
+
+                element.className =
+                    'live-market-status ' + state;
+
+                element.innerText = text;
+            }
+
+
+            function initializeLiveMarketChart() {
+                const container =
+                    document.getElementById(
+                        'live-market-chart'
+                    );
+
+                if (!container) {
+                    return;
+                }
+
+                if (liveMarketChart) {
+                    liveMarketChart.remove();
+                }
+
+                liveMarketChart =
+                    LightweightCharts.createChart(
+                        container,
+                        {
+                            width:
+                                container.clientWidth,
+
+                            height: 480,
+
+                            layout: {
+                                background: {
+                                    color: '#1E222D'
+                                },
+
+                                textColor: '#d1d4dc'
+                            },
+
+                            grid: {
+                                vertLines: {
+                                    color: '#2B2B43'
+                                },
+
+                                horzLines: {
+                                    color: '#2B2B43'
+                                }
+                            },
+
+                            timeScale: {
+                                timeVisible: true,
+                                secondsVisible: false,
+                                borderColor: '#434651'
+                            },
+
+                            rightPriceScale: {
+                                borderColor: '#434651'
+                            }
+                        }
+                    );
+
+                liveCandlestickSeries =
+                    liveMarketChart
+                    .addCandlestickSeries();
+
+                window.addEventListener(
+                    'resize',
+                    () => {
+                        if (
+                            liveMarketChart
+                            && container
+                        ) {
+                            liveMarketChart.applyOptions(
+                                {
+                                    width:
+                                        container.clientWidth
+                                }
+                            );
+                        }
+                    }
+                );
+            }
+
+
+            async function loadHistoricalMarketData(
+                symbol,
+                interval
+            ) {
+                const token =
+                    localStorage.getItem(
+                        'quant_token'
+                    );
+
+                const params =
+                    new URLSearchParams({
+                        symbol: symbol,
+                        interval: interval,
+                        limit: '200'
+                    });
+
+                const response =
+                    await fetch(
+                        '/api/market/klines?'
+                        + params.toString(),
+                        {
+                            headers: {
+                                'Authorization':
+                                    'Bearer ' + token
+                            }
+                        }
+                    );
+
+                if (response.status === 401) {
+                    logout();
+
+                    throw new Error(
+                        'Oturum süresi doldu.'
+                    );
+                }
+
+                if (!response.ok) {
+                    const body =
+                        await response.json();
+
+                    throw new Error(
+                        body.detail
+                        || 'Market geçmişi alınamadı.'
+                    );
+                }
+
+                const data =
+                    await response.json();
+
+                const candles =
+                    data.candles.map(
+                        candle => ({
+                            time:
+                                Math.floor(
+                                    candle.open_time_ms
+                                    / 1000
+                                ),
+
+                            open:
+                                Number(candle.open),
+
+                            high:
+                                Number(candle.high),
+
+                            low:
+                                Number(candle.low),
+
+                            close:
+                                Number(candle.close)
+                        })
+                    );
+
+                liveCandlestickSeries.setData(
+                    candles
+                );
+
+                if (candles.length > 0) {
+                    const last =
+                        candles[
+                            candles.length - 1
+                        ];
+
+                    liveLastClose =
+                        last.close;
+
+                    document.getElementById(
+                        'live-price'
+                    ).innerText =
+                        formatMarketPrice(
+                            last.close
+                        );
+
+                    document.getElementById(
+                        'live-open'
+                    ).innerText =
+                        formatMarketPrice(
+                            last.open
+                        );
+
+                    document.getElementById(
+                        'live-high'
+                    ).innerText =
+                        formatMarketPrice(
+                            last.high
+                        );
+
+                    document.getElementById(
+                        'live-low'
+                    ).innerText =
+                        formatMarketPrice(
+                            last.low
+                        );
+                }
+
+                liveMarketChart
+                    .timeScale()
+                    .fitContent();
+            }
+
+
+            function connectLiveMarketSocket(
+                symbol,
+                interval
+            ) {
+                if (liveMarketSocket) {
+                    liveMarketSocket.onclose = null;
+                    liveMarketSocket.close();
+                    liveMarketSocket = null;
+                }
+
+                const protocol =
+                    window.location.protocol
+                    === 'https:'
+                    ? 'wss'
+                    : 'ws';
+
+                const websocketUrl =
+                    protocol
+                    + '://'
+                    + window.location.host
+                    + '/ws/market/'
+                    + encodeURIComponent(symbol)
+                    + '?interval='
+                    + encodeURIComponent(interval);
+
+                setLiveMarketStatus(
+                    'connecting',
+                    '● CONNECTING'
+                );
+
+                liveMarketSocket =
+                    new WebSocket(
+                        websocketUrl
+                    );
+
+                liveMarketSocket.onopen =
+                    () => {
+                        setLiveMarketStatus(
+                            'connecting',
+                            '● CONNECTING'
+                        );
+                    };
+
+
+                liveMarketSocket.onmessage =
+                    event => {
+                        const message =
+                            JSON.parse(
+                                event.data
+                            );
+
+                        if (
+                            message.type
+                            === 'connected'
+                        ) {
+                            setLiveMarketStatus(
+                                'connected',
+                                '● LIVE'
+                            );
+
+                            return;
+                        }
+
+                        if (
+                            message.type
+                            === 'error'
+                        ) {
+                            document.getElementById(
+                                'live-market-error'
+                            ).innerText =
+                                message.detail;
+
+                            return;
+                        }
+
+                        if (
+                            message.type
+                            !== 'kline'
+                        ) {
+                            return;
+                        }
+
+                        const candle =
+                            message.data;
+
+                        const close =
+                            Number(
+                                candle.close
+                            );
+
+                        liveCandlestickSeries.update(
+                            {
+                                time:
+                                    Math.floor(
+                                        candle.open_time_ms
+                                        / 1000
+                                    ),
+
+                                open:
+                                    Number(
+                                        candle.open
+                                    ),
+
+                                high:
+                                    Number(
+                                        candle.high
+                                    ),
+
+                                low:
+                                    Number(
+                                        candle.low
+                                    ),
+
+                                close: close
+                            }
+                        );
+
+                        const priceElement =
+                            document.getElementById(
+                                'live-price'
+                            );
+
+                        priceElement.innerText =
+                            formatMarketPrice(
+                                close
+                            );
+
+                        if (
+                            liveLastClose !== null
+                        ) {
+                            setMetricTrend(
+                                'live-price',
+                                close
+                                - liveLastClose
+                            );
+                        }
+
+                        liveLastClose =
+                            close;
+
+                        document.getElementById(
+                            'live-open'
+                        ).innerText =
+                            formatMarketPrice(
+                                candle.open
+                            );
+
+                        document.getElementById(
+                            'live-high'
+                        ).innerText =
+                            formatMarketPrice(
+                                candle.high
+                            );
+
+                        document.getElementById(
+                            'live-low'
+                        ).innerText =
+                            formatMarketPrice(
+                                candle.low
+                            );
+
+                        document.getElementById(
+                            'live-volume'
+                        ).innerText =
+                            Number(
+                                candle.volume
+                            ).toLocaleString(
+                                undefined,
+                                {
+                                    maximumFractionDigits: 4
+                                }
+                            );
+
+                        document.getElementById(
+                            'live-trade-count'
+                        ).innerText =
+                            Number(
+                                candle.trade_count
+                            ).toLocaleString();
+
+                        document.getElementById(
+                            'live-candle-status'
+                        ).innerText =
+                            candle.closed
+                            ? 'CLOSED'
+                            : 'LIVE';
+                    };
+
+
+                liveMarketSocket.onerror =
+                    () => {
+                        document.getElementById(
+                            'live-market-error'
+                        ).innerText =
+                            'WebSocket bağlantı hatası.';
+                    };
+
+
+                liveMarketSocket.onclose =
+                    () => {
+                        setLiveMarketStatus(
+                            'disconnected',
+                            '● OFFLINE'
+                        );
+                    };
+            }
+
+
+            async function startLiveMarket() {
+                const symbol =
+                    document.getElementById(
+                        'live-market-symbol'
+                    ).value;
+
+                const interval =
+                    document.getElementById(
+                        'live-market-interval'
+                    ).value;
+
+                const errorBox =
+                    document.getElementById(
+                        'live-market-error'
+                    );
+
+                errorBox.innerText = '';
+
+                document.getElementById(
+                    'live-symbol'
+                ).innerText =
+                    symbol;
+
+                setLiveMarketStatus(
+                    'connecting',
+                    '● LOADING'
+                );
+
+                try {
+                    initializeLiveMarketChart();
+
+                    await loadHistoricalMarketData(
+                        symbol,
+                        interval
+                    );
+
+                    connectLiveMarketSocket(
+                        symbol,
+                        interval
+                    );
+
+                } catch (error) {
+                    setLiveMarketStatus(
+                        'disconnected',
+                        '● OFFLINE'
+                    );
+
+                    errorBox.innerText =
+                        'Live Market Hatası: '
+                        + error.message;
+                }
             }
 
 
