@@ -983,6 +983,43 @@ def test_live_market_websocket(
             in message["technical"]
         )
 
+        assert (
+            "interpretation"
+            in message
+        )
+
+        assert (
+            message["interpretation"][
+                "ready"
+            ]
+            is True
+        )
+
+        assert (
+            "state"
+            in message["interpretation"]
+        )
+
+        assert (
+            "confidence"
+            in message["interpretation"]
+        )
+
+        assert (
+            "important"
+            in message["interpretation"]
+        )
+
+        assert (
+            "low_relevance"
+            in message["interpretation"]
+        )
+
+        assert (
+            "explanation"
+            in message["interpretation"]
+        )
+
 
 def test_market_24h_ticker_requires_authentication(
     client,

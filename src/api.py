@@ -27,6 +27,7 @@ from fastapi import WebSocket as FastAPIWebSocket, WebSocketDisconnect as FastAP
 from src.trade_analytics import analyze_trades
 from src.live_signal import LiveSMAEngine
 from src.technical_indicators import calculate_technical_snapshot
+from src.market_interpreter import MarketInterpreter
 from src.binance_market import (
     get_klines,
     get_24h_ticker,
@@ -700,6 +701,17 @@ async def market_websocket(
             )
         )
 
+        interpreter = (
+            MarketInterpreter()
+        )
+
+        market_interpretation = (
+            interpreter.interpret(
+                technical_snapshot,
+                indicator_snapshot,
+            )
+        )
+
     except Exception as error:
         print(
             "Live SMA seed hatası:",
@@ -733,6 +745,9 @@ async def market_websocket(
 
             "technical":
                 technical_snapshot,
+
+            "interpretation":
+                market_interpretation,
         }
     )
 
@@ -757,6 +772,13 @@ async def market_websocket(
                 )
             )
 
+            market_interpretation = (
+                interpreter.interpret(
+                    technical_snapshot,
+                    indicators,
+                )
+            )
+
             await websocket.send_json(
                 {
                     "type": "kline",
@@ -766,6 +788,9 @@ async def market_websocket(
 
                     "technical":
                         technical_snapshot,
+
+                    "interpretation":
+                        market_interpretation,
                 }
             )
 
