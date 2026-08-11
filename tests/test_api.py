@@ -299,6 +299,15 @@ def test_frontend_contains_backtest_dashboard(
     assert 'id="live-technical-rating"' in html
     assert "calculateBollingerSeries" in html
     assert "updateLiveTechnicalAnalysis" in html
+    assert 'id="market-summary-panel"' in html
+    assert 'id="market-summary-state"' in html
+    assert 'id="market-summary-confidence"' in html
+    assert 'id="market-important-factors"' in html
+    assert 'id="market-low-relevance"' in html
+    assert 'id="advanced-analysis"' in html
+    assert "setAnalysisMode" in html
+    assert "renderMarketFactors" in html
+    assert "updateMarketInterpretation" in html
     assert "renderLiveSignalHistory" in html
     assert "recordConfirmedCrossover" in html
     assert "showLiveSignalToast" in html

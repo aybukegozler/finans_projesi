@@ -1101,6 +1101,219 @@ def read_root():
                 font-weight: bold;
             }
 
+            .analysis-mode-toolbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+                margin-top: 28px;
+                margin-bottom: 14px;
+                flex-wrap: wrap;
+            }
+
+            .analysis-mode-buttons {
+                display: flex;
+                gap: 8px;
+            }
+
+            .analysis-mode-button {
+                border: 1px solid #343946;
+                background: #171b26;
+                color: #8f96a3;
+                padding: 9px 15px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-weight: 700;
+                transition: 0.15s ease;
+            }
+
+            .analysis-mode-button:hover {
+                background: #232836;
+                color: #ffffff;
+            }
+
+            .analysis-mode-button.active {
+                background: #2d3444;
+                color: #ffffff;
+                border-color: #596174;
+            }
+
+            .analysis-mode-note {
+                color: #747c8b;
+                font-size: 12px;
+            }
+
+            .market-summary-panel {
+                background: #171b26;
+                border: 1px solid #2b3040;
+                border-radius: 12px;
+                padding: 22px;
+                margin-bottom: 24px;
+            }
+
+            .market-summary-top {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 24px;
+                margin-bottom: 18px;
+                flex-wrap: wrap;
+            }
+
+            .market-summary-label {
+                color: #7d8594;
+                font-size: 11px;
+                font-weight: 800;
+                letter-spacing: 0.08em;
+                margin-bottom: 6px;
+            }
+
+            .market-summary-state {
+                font-size: 30px;
+                font-weight: 900;
+                letter-spacing: -0.02em;
+            }
+
+            .market-summary-state.positive {
+                color: #00e676;
+            }
+
+            .market-summary-state.negative {
+                color: #ff5252;
+            }
+
+            .market-summary-state.neutral {
+                color: #d1d4dc;
+            }
+
+            .market-summary-confidence {
+                font-size: 24px;
+                font-weight: 800;
+                color: #d1d4dc;
+            }
+
+            .market-summary-headline {
+                font-size: 17px;
+                font-weight: 700;
+                color: #ffffff;
+                margin-bottom: 18px;
+            }
+
+            .market-summary-grid {
+                display: grid;
+                grid-template-columns:
+                    repeat(
+                        2,
+                        minmax(0, 1fr)
+                    );
+                gap: 14px;
+                margin-bottom: 14px;
+            }
+
+            .market-summary-box,
+            .market-summary-explanation-box {
+                background: #11151f;
+                border: 1px solid #252a37;
+                border-radius: 9px;
+                padding: 15px;
+            }
+
+            .market-summary-box-title {
+                color: #8f96a3;
+                font-size: 11px;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 0.07em;
+                margin-bottom: 10px;
+            }
+
+            .market-factor-list {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .market-factor {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                padding-bottom: 8px;
+                border-bottom:
+                    1px solid #232836;
+            }
+
+            .market-factor:last-child {
+                border-bottom: none;
+                padding-bottom: 0;
+            }
+
+            .market-factor-name {
+                color: #d1d4dc;
+                font-weight: 700;
+            }
+
+            .market-factor-value {
+                color: #8f96a3;
+                font-size: 12px;
+                text-align: right;
+            }
+
+            .market-factor-high {
+                color: #ffffff;
+                font-weight: 800;
+            }
+
+            .market-factor-medium {
+                color: #b4bac6;
+            }
+
+            .market-factor-low {
+                color: #747c8b;
+            }
+
+            .market-summary-explanation {
+                color: #c2c7d0;
+                line-height: 1.6;
+            }
+
+            .market-summary-conflicts {
+                margin-top: 14px;
+                padding: 12px 14px;
+                background:
+                    rgba(
+                        255,
+                        193,
+                        7,
+                        0.08
+                    );
+                border:
+                    1px solid
+                    rgba(
+                        255,
+                        193,
+                        7,
+                        0.28
+                    );
+                border-radius: 8px;
+                color: #f1cc65;
+                line-height: 1.5;
+            }
+
+            .advanced-analysis.is-hidden {
+                display: none;
+            }
+
+            @media (
+                max-width: 760px
+            ) {
+                .market-summary-grid {
+                    grid-template-columns:
+                        1fr;
+                }
+            }
+
+
             .signal-alert-section {
                 margin-top: 24px;
                 margin-bottom: 28px;
@@ -1590,6 +1803,123 @@ def read_root():
                 </div>
             </div>
 
+            <div class="analysis-mode-toolbar">
+                <div class="analysis-mode-buttons">
+                    <button
+                        id="basic-view-button"
+                        class="analysis-mode-button active"
+                        onclick="setAnalysisMode('basic')"
+                    >
+                        Basic View
+                    </button>
+
+                    <button
+                        id="advanced-view-button"
+                        class="analysis-mode-button"
+                        onclick="setAnalysisMode('advanced')"
+                    >
+                        Advanced View
+                    </button>
+                </div>
+
+                <div class="analysis-mode-note">
+                    Heuristic interpretation ·
+                    not a price prediction
+                </div>
+            </div>
+
+            <div
+                id="market-summary-panel"
+                class="market-summary-panel"
+            >
+                <div class="market-summary-top">
+                    <div>
+                        <div class="market-summary-label">
+                            MARKET STATE
+                        </div>
+
+                        <div
+                            id="market-summary-state"
+                            class="market-summary-state neutral"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="market-summary-label">
+                            HEURISTIC CONFIDENCE
+                        </div>
+
+                        <div
+                            id="market-summary-confidence"
+                            class="market-summary-confidence"
+                        >
+                            --
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    id="market-summary-headline"
+                    class="market-summary-headline"
+                >
+                    Connect to a market to begin analysis.
+                </div>
+
+                <div class="market-summary-grid">
+                    <div class="market-summary-box">
+                        <div class="market-summary-box-title">
+                            What matters now
+                        </div>
+
+                        <div
+                            id="market-important-factors"
+                            class="market-factor-list"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="market-summary-box">
+                        <div class="market-summary-box-title">
+                            Low relevance
+                        </div>
+
+                        <div
+                            id="market-low-relevance"
+                            class="market-factor-list"
+                        >
+                            --
+                        </div>
+                    </div>
+                </div>
+
+                <div class="market-summary-explanation-box">
+                    <div class="market-summary-box-title">
+                        Why?
+                    </div>
+
+                    <div
+                        id="market-summary-explanation"
+                        class="market-summary-explanation"
+                    >
+                        Waiting for live technical data.
+                    </div>
+                </div>
+
+                <div
+                    id="market-summary-conflicts"
+                    class="market-summary-conflicts"
+                    style="display: none;"
+                ></div>
+            </div>
+
+            <div
+                id="advanced-analysis"
+                class="advanced-analysis is-hidden"
+            >
+
             <h3 class="section-title">
                 Live Technical Analysis
             </h3>
@@ -1714,6 +2044,8 @@ def read_root():
                         NEUTRAL
                     </div>
                 </div>
+            </div>
+
             </div>
 
             <div class="live-chart-card">
@@ -4454,6 +4786,315 @@ def read_root():
             }
 
 
+            function setAnalysisMode(
+                mode
+            ) {
+                const advanced =
+                    document.getElementById(
+                        'advanced-analysis'
+                    );
+
+                const basicButton =
+                    document.getElementById(
+                        'basic-view-button'
+                    );
+
+                const advancedButton =
+                    document.getElementById(
+                        'advanced-view-button'
+                    );
+
+                const isAdvanced =
+                    mode === 'advanced';
+
+                advanced.classList.toggle(
+                    'is-hidden',
+                    !isAdvanced
+                );
+
+                basicButton.classList.toggle(
+                    'active',
+                    !isAdvanced
+                );
+
+                advancedButton.classList.toggle(
+                    'active',
+                    isAdvanced
+                );
+
+                try {
+                    localStorage.setItem(
+                        'marketAnalysisMode',
+                        mode
+                    );
+                } catch (error) {
+                    console.debug(
+                        'Analysis mode persistence unavailable.',
+                        error
+                    );
+                }
+            }
+
+
+            function renderMarketFactors(
+                elementId,
+                factors
+            ) {
+                const container =
+                    document.getElementById(
+                        elementId
+                    );
+
+                container.innerHTML = '';
+
+                if (
+                    !factors
+                    || factors.length === 0
+                ) {
+                    const empty =
+                        document.createElement(
+                            'div'
+                        );
+
+                    empty.className =
+                        'market-factor-value';
+
+                    empty.textContent =
+                        'None';
+
+                    container.appendChild(
+                        empty
+                    );
+
+                    return;
+                }
+
+                factors.slice(
+                    0,
+                    4
+                ).forEach(
+                    factor => {
+                        const row =
+                            document.createElement(
+                                'div'
+                            );
+
+                        row.className =
+                            'market-factor';
+
+
+                        const name =
+                            document.createElement(
+                                'div'
+                            );
+
+                        name.className =
+                            'market-factor-name';
+
+                        name.textContent =
+                            factor.name;
+
+
+                        const value =
+                            document.createElement(
+                                'div'
+                            );
+
+                        const importance =
+                            String(
+                                factor.importance
+                                || ''
+                            ).toLowerCase();
+
+                        value.className =
+                            'market-factor-value '
+                            + (
+                                'market-factor-'
+                                + importance
+                            );
+
+                        value.textContent =
+                            (
+                                factor.direction
+                                || '--'
+                            )
+                            + (
+                                factor.importance
+                                ? ' · '
+                                    + factor.importance
+                                : ''
+                            );
+
+
+                        row.appendChild(
+                            name
+                        );
+
+                        row.appendChild(
+                            value
+                        );
+
+                        container.appendChild(
+                            row
+                        );
+                    }
+                );
+            }
+
+
+            function updateMarketInterpretation(
+                interpretation
+            ) {
+                if (!interpretation) {
+                    return;
+                }
+
+                const stateElement =
+                    document.getElementById(
+                        'market-summary-state'
+                    );
+
+                const confidenceElement =
+                    document.getElementById(
+                        'market-summary-confidence'
+                    );
+
+                const headlineElement =
+                    document.getElementById(
+                        'market-summary-headline'
+                    );
+
+                const explanationElement =
+                    document.getElementById(
+                        'market-summary-explanation'
+                    );
+
+                const conflictsElement =
+                    document.getElementById(
+                        'market-summary-conflicts'
+                    );
+
+
+                if (!interpretation.ready) {
+                    stateElement.textContent =
+                        'WARMING UP';
+
+                    stateElement.className =
+                        'market-summary-state neutral';
+
+                    confidenceElement.textContent =
+                        '--';
+
+                    headlineElement.textContent =
+                        interpretation.headline
+                        || (
+                            'Collecting enough '
+                            + 'market data.'
+                        );
+
+                    explanationElement.textContent =
+                        interpretation.explanation
+                        || '';
+
+                    renderMarketFactors(
+                        'market-important-factors',
+                        []
+                    );
+
+                    renderMarketFactors(
+                        'market-low-relevance',
+                        []
+                    );
+
+                    conflictsElement.style.display =
+                        'none';
+
+                    return;
+                }
+
+
+                const state =
+                    interpretation.state
+                    || 'NEUTRAL';
+
+                stateElement.textContent =
+                    state.replace(
+                        '_',
+                        ' '
+                    );
+
+                if (
+                    state === 'BUY'
+                    || state === 'STRONG_BUY'
+                ) {
+                    stateElement.className =
+                        'market-summary-state positive';
+
+                } else if (
+                    state === 'SELL'
+                    || state === 'STRONG_SELL'
+                ) {
+                    stateElement.className =
+                        'market-summary-state negative';
+
+                } else {
+                    stateElement.className =
+                        'market-summary-state neutral';
+                }
+
+
+                confidenceElement.textContent =
+                    String(
+                        interpretation.confidence
+                    )
+                    + ' / 100';
+
+
+                headlineElement.textContent =
+                    interpretation.headline
+                    || '--';
+
+
+                explanationElement.textContent =
+                    interpretation.explanation
+                    || '--';
+
+
+                renderMarketFactors(
+                    'market-important-factors',
+                    interpretation.important
+                );
+
+                renderMarketFactors(
+                    'market-low-relevance',
+                    interpretation.low_relevance
+                );
+
+
+                const conflicts =
+                    interpretation.conflicts
+                    || [];
+
+                if (conflicts.length > 0) {
+                    conflictsElement.textContent =
+                        'Conflict: '
+                        + conflicts.join(
+                            ' '
+                        );
+
+                    conflictsElement.style.display =
+                        'block';
+
+                } else {
+                    conflictsElement.textContent =
+                        '';
+
+                    conflictsElement.style.display =
+                        'none';
+                }
+            }
+
+
             function updateLiveTechnicalAnalysis(
                 technical,
                 candleTime = null
@@ -5306,6 +5947,10 @@ def read_root():
                                 message.technical
                             );
 
+                            updateMarketInterpretation(
+                                message.interpretation
+                            );
+
                             return;
                         }
 
@@ -5373,6 +6018,10 @@ def read_root():
                         updateLiveTechnicalAnalysis(
                             message.technical,
                             candleTime
+                        );
+
+                        updateMarketInterpretation(
+                            message.interpretation
                         );
 
                         recordConfirmedCrossover(
@@ -5643,7 +6292,20 @@ def read_root():
                     document.getElementById('error-box').innerText = "Grafik Hatası: " + err.message;
                 });
             }
-        </script>
+        
+            try {
+                setAnalysisMode(
+                    localStorage.getItem(
+                        'marketAnalysisMode'
+                    ) || 'basic'
+                );
+            } catch (error) {
+                setAnalysisMode(
+                    'basic'
+                );
+            }
+
+</script>
     </body>
     </html>
     """
