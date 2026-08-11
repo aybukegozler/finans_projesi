@@ -110,7 +110,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-        
+
     user = db.query(User).filter(User.username == username).first()
     if user is None:
         raise credentials_exception
@@ -167,7 +167,7 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
 # 2. Korunan Veri Rotası (RBAC Mimarisi Burada Çalışıyor)
 @app.get("/api/data")
 def get_market_data(current_user: User = Depends(get_current_user)):
-    
+
     # Sadece admin C++ motorunu yeniden çalıştırabilir.
     if current_user.role == "admin":
         try:
@@ -231,8 +231,8 @@ def get_market_data(current_user: User = Depends(get_current_user)):
     df['Date'] = pd.to_datetime(df['Date'], utc=True, errors='coerce').dt.strftime('%Y-%m-%d')
     df = df.dropna(subset=['Date', 'Close'])
     df = df.drop_duplicates(subset=['Date']).sort_values('Date')
-    df = df.fillna(0) 
-    
+    df = df.fillna(0)
+
     data_list = df.to_dict(orient="records")
     if len(data_list) == 0:
          return {"error": "Veri var ama tablo boş!"}
@@ -842,7 +842,7 @@ def read_root():
             .btn-login { width: 100%; padding: 12px; background: #2962FF; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; }
             .btn-login:hover { background: #1E4BD8; }
             #login-error { color: #FF5252; text-align: center; margin-top: 15px; display: none; font-size: 14px; }
-            
+
             /* Dashboard Stilleri */
             .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
             .header-text h1 { color: #fff; margin: 0 0 5px 0; }
@@ -1488,7 +1488,7 @@ def read_root():
         </style>
     </head>
     <body>
-        
+
         <!-- 1. GİRİŞ EKRANI -->
         <div id="login-section" class="auth-container">
             <h2>Sisteme Giriş</h2>
@@ -2766,7 +2766,7 @@ def read_root():
                 const params = new URLSearchParams();
                 params.append('username', document.getElementById('username').value);
                 params.append('password', document.getElementById('password').value);
-                
+
                 fetch('/token', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -2797,13 +2797,13 @@ def read_root():
             function showDashboard() {
                 document.getElementById('login-section').style.display = 'none';
                 document.getElementById('dashboard-section').style.display = 'block';
-                
+
                 // Rol etiketini güncelle (ADMIN veya USER)
                 const userRole = localStorage.getItem('quant_role').toUpperCase();
                 const badge = document.getElementById('role-badge');
                 badge.innerText = userRole;
                 if(userRole !== 'ADMIN') badge.style.background = '#2962FF'; // Standart kullanıcıya mavi etiket
-                
+
                 loadChartData();
                 loadBacktestData();
             }
@@ -6236,12 +6236,12 @@ def read_root():
 
             // --- GRAFİK ÇİZİM MANTIĞI ---
             function loadChartData() {
-                const chartOptions = { 
+                const chartOptions = {
                     layout: { textColor: '#d1d4dc', background: { type: 'solid', color: '#1E222D' } },
                     grid: { vertLines: { color: '#2B2B43' }, horzLines: { color: '#2B2B43' } },
                     crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
                 };
-                
+
                 // Eğer daha önce grafik çizildiyse temizle (çift çizimi engeller)
                 document.getElementById('chart-container').innerHTML = '';
                 const chart = LightweightCharts.createChart(document.getElementById('chart-container'), chartOptions);
@@ -6252,7 +6252,7 @@ def read_root():
 
                 // ÖNEMLİ: API'ye istek atarken yetki belgemizi (Token) gönderiyoruz!
                 const token = localStorage.getItem('quant_token');
-                
+
                 fetch('/api/data?v=' + new Date().getTime(), {
                     headers: { 'Authorization': 'Bearer ' + token }
                 })
@@ -6292,7 +6292,7 @@ def read_root():
                     document.getElementById('error-box').innerText = "Grafik Hatası: " + err.message;
                 });
             }
-        
+
             try {
                 setAnalysisMode(
                     localStorage.getItem(
