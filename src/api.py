@@ -1394,6 +1394,159 @@ def read_root():
                 line-height: 1.5;
             }
 
+            .ai-analyst-panel {
+                margin-bottom: 24px;
+                padding: 22px;
+                border: 1px solid #343b4d;
+                border-radius: 12px;
+                background: #171b26;
+            }
+
+            .ai-analyst-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 20px;
+                flex-wrap: wrap;
+            }
+
+            .ai-analyst-eyebrow {
+                color: #7f8796;
+                font-size: 11px;
+                font-weight: 900;
+                letter-spacing: 0.11em;
+            }
+
+            .ai-analyst-title {
+                margin: 5px 0;
+                color: #ffffff;
+                font-size: 22px;
+            }
+
+            .ai-analyst-subtitle {
+                max-width: 560px;
+                color: #8f96a3;
+                font-size: 13px;
+                line-height: 1.5;
+            }
+
+            .ai-explain-button {
+                padding: 11px 18px;
+                border: 1px solid #536dfe;
+                border-radius: 8px;
+                background: #304ffe;
+                color: #ffffff;
+                font-weight: 800;
+                cursor: pointer;
+            }
+
+            .ai-explain-button:hover {
+                filter: brightness(1.08);
+            }
+
+            .ai-explain-button:disabled {
+                opacity: 0.55;
+                cursor: wait;
+            }
+
+            .ai-analyst-status {
+                margin-top: 15px;
+                color: #858d9c;
+                font-size: 13px;
+            }
+
+            .ai-analyst-content {
+                margin-top: 18px;
+            }
+
+            .ai-analyst-content.is-hidden {
+                display: none;
+            }
+
+            .ai-analysis-grid {
+                display: grid;
+                grid-template-columns:
+                    repeat(
+                        2,
+                        minmax(0, 1fr)
+                    );
+                gap: 12px;
+            }
+
+            .ai-analysis-section {
+                margin-top: 12px;
+                padding: 15px;
+                border: 1px solid #252a37;
+                border-radius: 9px;
+                background: #11151f;
+            }
+
+            .ai-analysis-label {
+                margin-bottom: 8px;
+                color: #7d8594;
+                font-size: 10px;
+                font-weight: 900;
+                letter-spacing: 0.10em;
+            }
+
+            .ai-analysis-summary {
+                color: #ffffff;
+                font-size: 17px;
+                font-weight: 700;
+                line-height: 1.55;
+            }
+
+            .ai-analysis-text {
+                color: #c2c7d0;
+                line-height: 1.65;
+            }
+
+            .ai-analysis-factor-list {
+                display: flex;
+                flex-direction: column;
+                gap: 9px;
+            }
+
+            .ai-analysis-factor {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                padding-bottom: 8px;
+                border-bottom: 1px solid #232836;
+            }
+
+            .ai-analysis-factor:last-child {
+                padding-bottom: 0;
+                border-bottom: none;
+            }
+
+            .ai-analysis-factor-name {
+                color: #d1d4dc;
+                font-weight: 700;
+            }
+
+            .ai-analysis-factor-meta {
+                color: #858d9c;
+                font-size: 12px;
+                text-align: right;
+            }
+
+            .ai-analysis-source {
+                margin-top: 12px;
+                color: #676f7e;
+                font-size: 11px;
+                text-align: right;
+            }
+
+            @media (
+                max-width: 760px
+            ) {
+                .ai-analysis-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+
             .advanced-analysis.is-hidden {
                 display: none;
             }
@@ -2008,6 +2161,111 @@ def read_root():
                     style="display: none;"
                 ></div>
             </div>
+
+            <div
+                id="ai-analyst-panel"
+                class="ai-analyst-panel"
+            >
+                <div class="ai-analyst-header">
+                    <div>
+                        <div class="ai-analyst-eyebrow">
+                            LOCAL AI ANALYST
+                        </div>
+
+                        <h3 class="ai-analyst-title">
+                            Grafiği AI ile Açıkla
+                        </h3>
+
+                        <div class="ai-analyst-subtitle">
+                            Mevcut teknik verileri
+                            Qwen3 ile sade Türkçe olarak açıklar.
+                        </div>
+                    </div>
+
+                    <button
+                        id="ai-explain-button"
+                        class="ai-explain-button"
+                        onclick="requestAiMarketExplanation()"
+                    >
+                        ✨ AI ile Açıkla
+                    </button>
+                </div>
+
+                <div
+                    id="ai-analyst-status"
+                    class="ai-analyst-status"
+                >
+                    Analiz yalnızca butona bastığında çalışır.
+                </div>
+
+                <div
+                    id="ai-analyst-content"
+                    class="ai-analyst-content is-hidden"
+                >
+                    <div class="ai-analysis-section">
+                        <div class="ai-analysis-label">
+                            ÖZET
+                        </div>
+
+                        <div
+                            id="ai-analysis-summary"
+                            class="ai-analysis-summary"
+                        ></div>
+                    </div>
+
+                    <div class="ai-analysis-section">
+                        <div class="ai-analysis-label">
+                            NE ANLAMA GELİYOR?
+                        </div>
+
+                        <div
+                            id="ai-analysis-explanation"
+                            class="ai-analysis-text"
+                        ></div>
+                    </div>
+
+                    <div class="ai-analysis-grid">
+                        <div class="ai-analysis-section">
+                            <div class="ai-analysis-label">
+                                ŞU ANDA ÖNEMLİ
+                            </div>
+
+                            <div
+                                id="ai-analysis-important"
+                                class="ai-analysis-factor-list"
+                            ></div>
+                        </div>
+
+                        <div class="ai-analysis-section">
+                            <div class="ai-analysis-label">
+                                DÜŞÜK ÖNEM
+                            </div>
+
+                            <div
+                                id="ai-analysis-low"
+                                class="ai-analysis-factor-list"
+                            ></div>
+                        </div>
+                    </div>
+
+                    <div class="ai-analysis-section">
+                        <div class="ai-analysis-label">
+                            EĞİTİM NOTU
+                        </div>
+
+                        <div
+                            id="ai-analysis-note"
+                            class="ai-analysis-text"
+                        ></div>
+                    </div>
+
+                    <div
+                        id="ai-analysis-source"
+                        class="ai-analysis-source"
+                    ></div>
+                </div>
+            </div>
+
 
             <div
                 id="advanced-analysis"
@@ -4877,6 +5135,268 @@ def read_root():
                 liveMarketChart
                     .timeScale()
                     .fitContent();
+            }
+
+
+            function renderAiFactorList(
+                elementId,
+                factors
+            ) {
+                const container =
+                    document.getElementById(
+                        elementId
+                    );
+
+                container.replaceChildren();
+
+                if (
+                    !factors
+                    || factors.length === 0
+                ) {
+                    container.textContent =
+                        'Yok';
+
+                    return;
+                }
+
+                factors.forEach(
+                    factor => {
+                        const row =
+                            document.createElement(
+                                'div'
+                            );
+
+                        row.className =
+                            'ai-analysis-factor';
+
+
+                        const name =
+                            document.createElement(
+                                'span'
+                            );
+
+                        name.className =
+                            'ai-analysis-factor-name';
+
+                        name.textContent =
+                            factor.name || '--';
+
+
+                        const meta =
+                            document.createElement(
+                                'span'
+                            );
+
+                        meta.className =
+                            'ai-analysis-factor-meta';
+
+                        meta.textContent =
+                            (
+                                factor.direction
+                                || '--'
+                            )
+                            + ' · '
+                            + (
+                                factor.importance
+                                || '--'
+                            );
+
+
+                        row.append(
+                            name,
+                            meta
+                        );
+
+                        container.appendChild(
+                            row
+                        );
+                    }
+                );
+            }
+
+
+            async function requestAiMarketExplanation() {
+                const button =
+                    document.getElementById(
+                        'ai-explain-button'
+                    );
+
+                const status =
+                    document.getElementById(
+                        'ai-analyst-status'
+                    );
+
+                const content =
+                    document.getElementById(
+                        'ai-analyst-content'
+                    );
+
+                const symbol =
+                    document.getElementById(
+                        'live-market-symbol'
+                    ).value;
+
+                const interval =
+                    document.getElementById(
+                        'live-market-interval'
+                    ).value;
+
+
+                button.disabled = true;
+
+                button.textContent =
+                    '⏳ Analiz ediliyor...';
+
+                status.textContent =
+                    (
+                        symbol
+                        + ' · '
+                        + interval
+                        + ' mevcut teknik verileri '
+                        + 'Qwen3 tarafından açıklanıyor...'
+                    );
+
+
+                try {
+                    const params =
+                        new URLSearchParams(
+                            {
+                                symbol: symbol,
+                                interval: interval
+                            }
+                        );
+
+                    const response =
+                        await fetch(
+                            (
+                                '/api/market/explain?'
+                                + params.toString()
+                            ),
+                            {
+                                method: 'POST'
+                            }
+                        );
+
+
+                    if (!response.ok) {
+                        throw new Error(
+                            'HTTP '
+                            + response.status
+                        );
+                    }
+
+
+                    const payload =
+                        await response.json();
+
+                    const analysis =
+                        payload.analysis;
+
+
+                    document.getElementById(
+                        'ai-analysis-summary'
+                    ).textContent =
+                        analysis.summary
+                        || '--';
+
+
+                    document.getElementById(
+                        'ai-analysis-explanation'
+                    ).textContent =
+                        analysis.explanation
+                        || '--';
+
+
+                    document.getElementById(
+                        'ai-analysis-note'
+                    ).textContent =
+                        analysis.educational_note
+                        || '--';
+
+
+                    renderAiFactorList(
+                        'ai-analysis-important',
+                        analysis.important
+                    );
+
+
+                    renderAiFactorList(
+                        'ai-analysis-low',
+                        analysis.low_relevance
+                    );
+
+
+                    let sourceText;
+
+                    if (
+                        analysis.source
+                        === 'ollama'
+                    ) {
+                        sourceText =
+                            (
+                                'Local AI · '
+                                + analysis.model
+                            );
+
+                    } else {
+                        sourceText =
+                            (
+                                'Deterministic fallback'
+                            );
+                    }
+
+
+                    document.getElementById(
+                        'ai-analysis-source'
+                    ).textContent =
+                        (
+                            sourceText
+                            + ' · '
+                            + payload.symbol
+                            + ' · '
+                            + payload.interval
+                        );
+
+
+                    content.classList.remove(
+                        'is-hidden'
+                    );
+
+
+                    if (
+                        analysis.source
+                        === 'ollama'
+                    ) {
+                        status.textContent =
+                            'AI analizi hazır.';
+
+                    } else {
+                        status.textContent =
+                            (
+                                'Local AI kullanılamadı; '
+                                + 'güvenli fallback '
+                                + 'açıklaması gösteriliyor.'
+                            );
+                    }
+
+                } catch (error) {
+                    console.error(
+                        'AI explanation failed:',
+                        error
+                    );
+
+                    status.textContent =
+                        (
+                            'AI açıklaması oluşturulamadı. '
+                            + 'Tekrar deneyebilirsin.'
+                        );
+
+                } finally {
+                    button.disabled = false;
+
+                    button.textContent =
+                        '✨ AI ile Açıkla';
+                }
             }
 
 

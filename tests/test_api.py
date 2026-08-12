@@ -308,6 +308,18 @@ def test_frontend_contains_backtest_dashboard(
     assert "setAnalysisMode" in html
     assert "renderMarketFactors" in html
     assert "updateMarketInterpretation" in html
+    assert 'id="ai-analyst-panel"' in html
+    assert 'id="ai-explain-button"' in html
+    assert 'id="ai-analyst-status"' in html
+    assert 'id="ai-analyst-content"' in html
+    assert 'id="ai-analysis-summary"' in html
+    assert 'id="ai-analysis-explanation"' in html
+    assert 'id="ai-analysis-important"' in html
+    assert 'id="ai-analysis-low"' in html
+    assert 'id="ai-analysis-note"' in html
+    assert "requestAiMarketExplanation" in html
+    assert "renderAiFactorList" in html
+    assert "/api/market/explain?" in html
     assert "renderLiveSignalHistory" in html
     assert "recordConfirmedCrossover" in html
     assert "showLiveSignalToast" in html
