@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import HTMLResponse
@@ -28,6 +29,7 @@ from src.trade_analytics import analyze_trades
 from src.live_signal import LiveSMAEngine
 from src.technical_indicators import calculate_technical_snapshot
 from src.market_interpreter import MarketInterpreter
+from src.llm_analyst import LocalLLMAnalyst
 from src.binance_market import (
     get_klines,
     get_24h_ticker,
@@ -614,6 +616,98 @@ def market_24h_ticker(
 
 
 # Binance Live Market WebSocket
+@app.post("/api/market/explain")
+async def explain_market(
+    symbol: str = "BTCUSDT",
+    interval: str = "1m",
+):
+    """
+    Generate an educational AI explanation for
+    the current public market state.
+
+    Ollama is optional. If it is unavailable,
+    LocalLLMAnalyst returns a deterministic
+    fallback explanation.
+    """
+
+    normalized_symbol = (
+        normalize_symbol(
+            symbol
+        )
+    )
+
+    validated_interval = (
+        validate_interval(
+            interval
+        )
+    )
+
+    candles = await asyncio.to_thread(
+        get_klines,
+        normalized_symbol,
+        validated_interval,
+        150,
+    )
+
+    if len(candles) < 50:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Not enough market data "
+                "for analysis."
+            ),
+        )
+
+    live_engine = LiveSMAEngine(
+        short_window=20,
+        long_window=50,
+    )
+
+    live_snapshot = (
+        live_engine.seed(
+            candles
+        )
+    )
+
+    technical_snapshot = (
+        calculate_technical_snapshot(
+            [
+                candle["close"]
+                for candle
+                in candles
+            ]
+        )
+    )
+
+    interpretation = (
+        MarketInterpreter().interpret(
+            technical_snapshot,
+            live_snapshot,
+        )
+    )
+
+    ai_analysis = (
+        await asyncio.to_thread(
+            LocalLLMAnalyst().analyze,
+            interpretation,
+        )
+    )
+
+    return {
+        "symbol":
+            normalized_symbol,
+
+        "interval":
+            validated_interval,
+
+        "interpretation":
+            interpretation,
+
+        "analysis":
+            ai_analysis,
+    }
+
+
 @app.websocket("/ws/market/{symbol}")
 async def market_websocket(
     websocket: FastAPIWebSocket,

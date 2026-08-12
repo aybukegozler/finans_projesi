@@ -590,6 +590,10 @@ Kurallar:
 - "important" listesindeki göstergeler ana açıklamanın temelidir.
 - "low_relevance" listesindeki göstergeler yalnızca arka plan bilgisidir.
 - LOW importance olan veriyi önemliymiş gibi anlatma.
+- LOW importance yalnızca mevcut piyasa anında
+  düşük açıklayıcı öneme sahip demektir.
+- LOW importance için "etkisizdir", "önemsizdir",
+  "piyasayı etkilemez" veya benzeri kesin ifadeler kullanma.
 - Aynı göstergeyi hem önemli hem önemsiz olarak tanımlama.
 - Önemli listede tek gösterge varsa diğer göstergelerden teyit
   varmış gibi davranma.
