@@ -104,8 +104,12 @@ def test_market_explain_pipeline(
         def analyze(
             self,
             market_interpretation,
+            mode="simple",
         ):
-            return analysis
+            return {
+                **analysis,
+                "mode": mode,
+            }
 
     monkeypatch.setattr(
         api,
@@ -117,6 +121,7 @@ def test_market_explain_pipeline(
         api.explain_market(
             symbol="BTCUSDT",
             interval="1m",
+            mode="technical",
         )
     )
 

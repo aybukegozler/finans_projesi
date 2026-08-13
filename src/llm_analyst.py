@@ -502,7 +502,14 @@ class LocalLLMAnalyst:
     def analyze(
         self,
         interpretation: dict[str, Any],
+        mode: str = "simple",
     ) -> dict[str, Any]:
+        if mode not in {
+            "simple",
+            "technical",
+        }:
+            mode = "simple"
+
         if not interpretation.get(
             "ready"
         ):
@@ -571,9 +578,39 @@ class LocalLLMAnalyst:
                 ),
         }
 
+        if mode == "simple":
+            mode_instructions = """
+Açıklama modu: BASİT.
+
+- Finans bilgisi olmayan bir kullanıcıya anlat.
+- Teknik terimleri mümkün olduğunca azalt.
+- SMA, MACD, RSI veya Bollinger adı geçerse
+  ne anlattığını birkaç kelimeyle açıkla.
+- Gereksiz yüzde ve ondalık değer kullanma.
+- "momentum", "bias", "volatilite" gibi kelimeleri
+  açıklamadan tek başına kullanma.
+- Önce büyük resmi anlat.
+- summary en fazla 2 kısa cümle olsun.
+- explanation en fazla 3 sade cümle olsun.
+""".strip()
+
+        else:
+            mode_instructions = """
+Açıklama modu: TEKNİK.
+
+- Teknik terimleri kullanabilirsin.
+- SMA spread, RSI seviyesi, MACD ilişkisi ve
+  Bollinger konumunu gerektiğinde sayısal olarak açıkla.
+- Göstergeler arasındaki teyit veya çelişkiyi belirt.
+- importance seviyelerini aynen koru.
+- summary kısa olsun.
+- explanation en fazla 4 teknik cümle olsun.
+""".strip()
+
+
         system_prompt = """
-Sen finansal piyasa grafiklerini yeni başlayan
-kullanıcılara açıklayan eğitim amaçlı bir asistansın.
+Sen finansal piyasa grafiklerini açıklayan
+eğitim amaçlı bir asistansın.
 
 Sadece sana verilen JSON verisini açıkla.
 
@@ -617,6 +654,12 @@ Kurallar:
 
 Çıktıyı verilen JSON şemasına kesin olarak uydur.
 """.strip()
+
+        system_prompt = (
+            system_prompt
+            + "\n\n"
+            + mode_instructions
+        )
 
         schema_text = (
             json.dumps(
@@ -833,6 +876,9 @@ Kurallar:
 
             "model":
                 self.model,
+
+            "mode":
+                mode,
 
             **result,
 
