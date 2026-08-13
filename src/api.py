@@ -1096,6 +1096,191 @@ def read_root():
                 font-weight: bold;
             }
 
+            .compact-dashboard-section {
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+                margin-bottom: 38px;
+            }
+
+            .compact-toolbar {
+                display: flex;
+                align-items: end;
+                gap: 12px;
+                flex-wrap: wrap;
+                margin-bottom: 16px;
+                max-width: 100%;
+            }
+
+            .compact-control {
+                flex: 0 1 300px;
+                min-width: 190px;
+            }
+
+            .compact-action-button {
+                width: auto;
+                min-width: 190px;
+                white-space: nowrap;
+            }
+
+            .compact-metrics,
+            .compact-position {
+                display: grid;
+                grid-template-columns:
+                    repeat(
+                        auto-fit,
+                        minmax(135px, 1fr)
+                    );
+                gap: 1px;
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+                overflow: hidden;
+                margin-bottom: 14px;
+                border: 1px solid #2B2B43;
+                border-radius: 10px;
+                background: #2B2B43;
+            }
+
+            .compact-stat {
+                min-width: 0;
+                padding: 14px 16px;
+                background: #171B26;
+            }
+
+            .compact-stat-label {
+                margin-bottom: 7px;
+                color: #858D9C;
+                font-size: 11px;
+                font-weight: 800;
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+            }
+
+            .compact-stat .metric-value {
+                min-width: 0;
+                font-size: 21px;
+                line-height: 1.2;
+                overflow-wrap: anywhere;
+            }
+
+            .compact-secondary {
+                margin-bottom: 0;
+            }
+
+            .compact-subsection-title {
+                margin: 26px 0 12px;
+                font-size: 21px;
+            }
+
+            .dashboard-details,
+            .settings-details {
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+                margin-top: 10px;
+                border: 1px solid #2B2B43;
+                border-radius: 9px;
+                background: #141823;
+                overflow: hidden;
+            }
+
+            .dashboard-details summary,
+            .settings-details summary {
+                padding: 12px 14px;
+                color: #A7ADBA;
+                font-size: 13px;
+                font-weight: 750;
+                cursor: pointer;
+                user-select: none;
+            }
+
+            .dashboard-details[open] summary,
+            .settings-details[open] summary {
+                border-bottom: 1px solid #2B2B43;
+            }
+
+            .dashboard-details-content {
+                min-width: 0;
+                padding: 14px;
+            }
+
+            .settings-details {
+                width: auto;
+                margin-top: 0;
+            }
+
+            .settings-details-content {
+                display: grid;
+                grid-template-columns:
+                    repeat(
+                        3,
+                        minmax(150px, 1fr)
+                    );
+                gap: 12px;
+                padding: 14px;
+            }
+
+            .compact-table {
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+                margin-top: 0;
+            }
+
+            .trade-history-details {
+                margin-top: 12px;
+            }
+
+            .compact-dashboard-section *,
+            .compact-dashboard-section *::before,
+            .compact-dashboard-section *::after {
+                box-sizing: border-box;
+            }
+
+            @media (
+                max-width: 760px
+            ) {
+                .compact-toolbar {
+                    align-items: stretch;
+                    flex-direction: column;
+                }
+
+                .compact-control,
+                .compact-action-button,
+                .settings-details {
+                    width: 100%;
+                    max-width: 100%;
+                }
+
+                .compact-control {
+                    flex: none;
+                }
+
+                .settings-details-content {
+                    grid-template-columns: 1fr;
+                }
+
+                .compact-metrics,
+                .compact-position {
+                    grid-template-columns:
+                        repeat(
+                            2,
+                            minmax(0, 1fr)
+                        );
+                }
+            }
+
+            @media (
+                max-width: 480px
+            ) {
+                .compact-metrics,
+                .compact-position {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+
             .optimizer-toolbar {
                 display: flex;
                 gap: 12px;
@@ -1115,6 +1300,9 @@ def read_root():
             }
 
             .optimizer-table-wrapper {
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
                 overflow-x: auto;
                 margin-top: 18px;
                 border: 1px solid #2B2B43;
@@ -2817,477 +3005,649 @@ def read_root():
                 Strategy Optimizer
             </h2>
 
-            <div class="optimizer-toolbar">
-                <div class="backtest-control">
-                    <label for="optimizer-objective">
-                        Optimization Objective
-                    </label>
+            <div class="compact-dashboard-section">
+                <div class="compact-toolbar">
+                    <div class="backtest-control compact-control">
+                        <label for="optimizer-objective">
+                            Optimization Objective
+                        </label>
 
-                    <select id="optimizer-objective">
-                        <option value="sharpe_ratio">
-                            Sharpe Ratio
-                        </option>
+                        <select id="optimizer-objective">
+                            <option value="sharpe_ratio">
+                                Sharpe Ratio
+                            </option>
 
-                        <option value="total_return_pct">
-                            Total Return
-                        </option>
+                            <option value="total_return_pct">
+                                Total Return
+                            </option>
 
-                        <option value="excess_return_pct">
-                            Excess Return
-                        </option>
-                    </select>
+                            <option value="excess_return_pct">
+                                Excess Return
+                            </option>
+                        </select>
+                    </div>
+
+                    <button
+                        class="btn-backtest compact-action-button"
+                        onclick="loadOptimizerData()"
+                    >
+                        Optimize Strategy
+                    </button>
                 </div>
 
-                <button
-                    class="btn-backtest"
-                    onclick="loadOptimizerData()"
-                >
-                    Optimize Strategy
-                </button>
+
+                <div class="compact-metrics">
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Best SMA
+                        </div>
+
+                        <div
+                            id="optimizer-best-pair"
+                            class="metric-value"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Return
+                        </div>
+
+                        <div
+                            id="optimizer-return"
+                            class="metric-value"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Sharpe
+                        </div>
+
+                        <div
+                            id="optimizer-sharpe"
+                            class="metric-value"
+                        >
+                            --
+                        </div>
+                    </div>
+                </div>
+
+
+                <details class="dashboard-details">
+                    <summary>
+                        More optimization details
+                    </summary>
+
+                    <div class="dashboard-details-content">
+                        <div class="compact-metrics compact-secondary">
+                            <div class="compact-stat">
+                                <div class="compact-stat-label">
+                                    Drawdown
+                                </div>
+
+                                <div
+                                    id="optimizer-drawdown"
+                                    class="metric-value metric-negative"
+                                >
+                                    --
+                                </div>
+                            </div>
+
+                            <div class="compact-stat">
+                                <div class="compact-stat-label">
+                                    Excess Return
+                                </div>
+
+                                <div
+                                    id="optimizer-excess"
+                                    class="metric-value"
+                                >
+                                    --
+                                </div>
+                            </div>
+
+                            <div class="compact-stat">
+                                <div class="compact-stat-label">
+                                    Combinations
+                                </div>
+
+                                <div
+                                    id="optimizer-count"
+                                    class="metric-value metric-neutral"
+                                >
+                                    --
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div class="optimizer-table-wrapper compact-table">
+                            <table class="optimizer-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>SMA Pair</th>
+                                        <th>Return</th>
+                                        <th>Sharpe</th>
+                                        <th>Drawdown</th>
+                                        <th>Trades</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody id="optimizer-results-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </details>
+
+                <div id="optimizer-error"></div>
             </div>
-
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Best SMA Pair
-                    </div>
-                    <div
-                        id="optimizer-best-pair"
-                        class="metric-value"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Optimized Return
-                    </div>
-                    <div
-                        id="optimizer-return"
-                        class="metric-value"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Optimized Sharpe
-                    </div>
-                    <div
-                        id="optimizer-sharpe"
-                        class="metric-value"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Optimized Drawdown
-                    </div>
-                    <div
-                        id="optimizer-drawdown"
-                        class="metric-value metric-negative"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Excess Return
-                    </div>
-                    <div
-                        id="optimizer-excess"
-                        class="metric-value"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Combinations Tested
-                    </div>
-                    <div
-                        id="optimizer-count"
-                        class="metric-value metric-neutral"
-                    >
-                        --
-                    </div>
-                </div>
             </div>
-
-            <div class="optimizer-table-wrapper">
-                <table class="optimizer-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>SMA Pair</th>
-                            <th>Return</th>
-                            <th>Sharpe</th>
-                            <th>Drawdown</th>
-                            <th>Trades</th>
-                        </tr>
-                    </thead>
-
-                    <tbody id="optimizer-results-body">
-                    </tbody>
-                </table>
-            </div>
-
-            <div id="optimizer-error"></div>
 
             <h2 class="section-title">
                 Walk-Forward Validation
             </h2>
 
-            <div class="optimizer-toolbar">
-                <div class="backtest-control">
-                    <label for="walk-forward-objective">
-                        Training Objective
-                    </label>
-
-                    <select id="walk-forward-objective">
-                        <option value="sharpe_ratio">
-                            Sharpe Ratio
-                        </option>
-                        <option value="total_return_pct">
-                            Total Return
-                        </option>
-                        <option value="excess_return_pct">
-                            Excess Return
-                        </option>
-                    </select>
-                </div>
-
-                <div class="backtest-control">
-                    <label for="walk-forward-train-size">
-                        Initial Train Rows
-                    </label>
-
-                    <input
-                        id="walk-forward-train-size"
-                        type="number"
-                        value="250"
-                        min="101"
-                        max="450"
+            <div class="compact-dashboard-section">
+                <div class="compact-toolbar">
+                    <button
+                        class="btn-backtest compact-action-button"
+                        onclick="loadWalkForwardData()"
                     >
+                        Validate Out-of-Sample
+                    </button>
+
+                    <details class="settings-details">
+                        <summary>
+                            Validation Settings
+                        </summary>
+
+                        <div class="settings-details-content">
+                            <div class="backtest-control">
+                                <label for="walk-forward-objective">
+                                    Training Objective
+                                </label>
+
+                                <select id="walk-forward-objective">
+                                    <option value="sharpe_ratio">
+                                        Sharpe Ratio
+                                    </option>
+
+                                    <option value="total_return_pct">
+                                        Total Return
+                                    </option>
+
+                                    <option value="excess_return_pct">
+                                        Excess Return
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div class="backtest-control">
+                                <label for="walk-forward-train-size">
+                                    Initial Train Rows
+                                </label>
+
+                                <input
+                                    id="walk-forward-train-size"
+                                    type="number"
+                                    value="250"
+                                    min="101"
+                                    max="450"
+                                >
+                            </div>
+
+                            <div class="backtest-control">
+                                <label for="walk-forward-test-size">
+                                    Test Rows
+                                </label>
+
+                                <input
+                                    id="walk-forward-test-size"
+                                    type="number"
+                                    value="50"
+                                    min="10"
+                                    max="100"
+                                >
+                            </div>
+                        </div>
+                    </details>
                 </div>
 
-                <div class="backtest-control">
-                    <label for="walk-forward-test-size">
-                        Test Rows
-                    </label>
 
-                    <input
-                        id="walk-forward-test-size"
-                        type="number"
-                        value="50"
-                        min="10"
-                        max="100"
-                    >
+                <div class="compact-metrics">
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            OOS Return
+                        </div>
+
+                        <div
+                            id="wf-oos-return"
+                            class="metric-value"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Benchmark
+                        </div>
+
+                        <div
+                            id="wf-benchmark"
+                            class="metric-value"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Excess
+                        </div>
+
+                        <div
+                            id="wf-excess"
+                            class="metric-value"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Profitable Folds
+                        </div>
+
+                        <div
+                            id="wf-profitable-folds"
+                            class="metric-value"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Avg Sharpe
+                        </div>
+
+                        <div
+                            id="wf-average-sharpe"
+                            class="metric-value"
+                        >
+                            --
+                        </div>
+                    </div>
                 </div>
 
-                <button
-                    class="btn-backtest"
-                    onclick="loadWalkForwardData()"
-                >
-                    Validate Out-of-Sample
-                </button>
+
+                <details class="dashboard-details">
+                    <summary>
+                        More validation metrics
+                    </summary>
+
+                    <div class="dashboard-details-content">
+                        <div class="compact-metrics compact-secondary">
+                            <div class="compact-stat">
+                                <div class="compact-stat-label">
+                                    Median Sharpe
+                                </div>
+
+                                <div
+                                    id="wf-median-sharpe"
+                                    class="metric-value"
+                                >
+                                    --
+                                </div>
+                            </div>
+
+                            <div class="compact-stat">
+                                <div class="compact-stat-label">
+                                    Worst Drawdown
+                                </div>
+
+                                <div
+                                    id="wf-drawdown"
+                                    class="metric-value metric-negative"
+                                >
+                                    --
+                                </div>
+                            </div>
+
+                            <div class="compact-stat">
+                                <div class="compact-stat-label">
+                                    Most Selected SMA
+                                </div>
+
+                                <div
+                                    id="wf-pair"
+                                    class="metric-value"
+                                >
+                                    --
+                                </div>
+                            </div>
+
+                            <div class="compact-stat">
+                                <div class="compact-stat-label">
+                                    Closed Trades
+                                </div>
+
+                                <div
+                                    id="wf-trades"
+                                    class="metric-value metric-neutral"
+                                >
+                                    --
+                                </div>
+                            </div>
+
+                            <div class="compact-stat">
+                                <div class="compact-stat-label">
+                                    Zero-Trade Folds
+                                </div>
+
+                                <div
+                                    id="wf-zero-folds"
+                                    class="metric-value metric-neutral"
+                                >
+                                    --
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+
+                <details class="dashboard-details">
+                    <summary>
+                        Fold Details
+                    </summary>
+
+                    <div class="dashboard-details-content">
+                        <div class="optimizer-table-wrapper compact-table">
+                            <table class="optimizer-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fold</th>
+                                        <th>Selected SMA</th>
+                                        <th>Test Period</th>
+                                        <th>Return</th>
+                                        <th>Benchmark</th>
+                                        <th>Sharpe</th>
+                                        <th>Drawdown</th>
+                                        <th>Trades</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody id="walk-forward-results-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </details>
+
+                <div id="walk-forward-error"></div>
             </div>
-
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-label">OOS Return</div>
-                    <div id="wf-oos-return" class="metric-value">--</div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">Benchmark</div>
-                    <div id="wf-benchmark" class="metric-value">--</div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">OOS Excess Return</div>
-                    <div id="wf-excess" class="metric-value">--</div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">Average Test Sharpe</div>
-                    <div id="wf-average-sharpe" class="metric-value">--</div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">Median Test Sharpe</div>
-                    <div id="wf-median-sharpe" class="metric-value">--</div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">Worst Fold Drawdown</div>
-                    <div id="wf-drawdown" class="metric-value metric-negative">--</div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">Profitable Folds</div>
-                    <div id="wf-profitable-folds" class="metric-value">--</div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">Most Selected Pair</div>
-                    <div id="wf-pair" class="metric-value">--</div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">Closed Trades</div>
-                    <div id="wf-trades" class="metric-value metric-neutral">--</div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">Zero-Trade Folds</div>
-                    <div id="wf-zero-folds" class="metric-value metric-neutral">--</div>
-                </div>
             </div>
-
-            <div class="optimizer-table-wrapper">
-                <table class="optimizer-table">
-                    <thead>
-                        <tr>
-                            <th>Fold</th>
-                            <th>Selected SMA</th>
-                            <th>Test Period</th>
-                            <th>Return</th>
-                            <th>Benchmark</th>
-                            <th>Sharpe</th>
-                            <th>Drawdown</th>
-                            <th>Trades</th>
-                        </tr>
-                    </thead>
-
-                    <tbody id="walk-forward-results-body"></tbody>
-                </table>
-            </div>
-
-            <div id="walk-forward-error"></div>
 
             <h2 class="section-title">
                 Trade Analytics
             </h2>
 
-            <div class="optimizer-toolbar">
-                <button
-                    class="btn-backtest"
-                    onclick="loadTradeAnalytics()"
-                >
-                    Load Trade History
-                </button>
+            <div class="compact-dashboard-section">
+                <div class="compact-toolbar">
+                    <button
+                        class="btn-backtest compact-action-button"
+                        onclick="loadTradeAnalytics()"
+                    >
+                        Load Trade History
+                    </button>
+                </div>
+
+
+                <div class="compact-metrics">
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Closed Trades
+                        </div>
+
+                        <div
+                            id="trade-closed-count"
+                            class="metric-value metric-neutral"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Win Rate
+                        </div>
+
+                        <div
+                            id="trade-win-rate"
+                            class="metric-value"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Net P&amp;L
+                        </div>
+
+                        <div
+                            id="trade-net-pnl"
+                            class="metric-value"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Profit Factor
+                        </div>
+
+                        <div
+                            id="trade-profit-factor"
+                            class="metric-value"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Avg Trade
+                        </div>
+
+                        <div
+                            id="trade-average-return"
+                            class="metric-value"
+                        >
+                            --
+                        </div>
+                    </div>
+                </div>
+
+
+                <details class="dashboard-details">
+                    <summary>
+                        More trade statistics
+                    </summary>
+
+                    <div class="dashboard-details-content">
+                        <div class="compact-metrics compact-secondary">
+                            <div class="compact-stat">
+                                <div class="compact-stat-label">
+                                    Avg Holding
+                                </div>
+
+                                <div
+                                    id="trade-average-holding"
+                                    class="metric-value metric-neutral"
+                                >
+                                    --
+                                </div>
+                            </div>
+
+                            <div class="compact-stat">
+                                <div class="compact-stat-label">
+                                    Total Fees
+                                </div>
+
+                                <div
+                                    id="trade-total-fees"
+                                    class="metric-value metric-neutral"
+                                >
+                                    --
+                                </div>
+                            </div>
+
+                            <div class="compact-stat">
+                                <div class="compact-stat-label">
+                                    Slippage
+                                </div>
+
+                                <div
+                                    id="trade-slippage-cost"
+                                    class="metric-value metric-neutral"
+                                >
+                                    --
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+
+                <h3 class="compact-subsection-title">
+                    Open Position
+                </h3>
+
+                <div class="compact-position">
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Entry Date
+                        </div>
+
+                        <div
+                            id="position-entry-date"
+                            class="metric-value metric-neutral"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Entry
+                        </div>
+
+                        <div
+                            id="position-entry-price"
+                            class="metric-value metric-neutral"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Current
+                        </div>
+
+                        <div
+                            id="position-current-price"
+                            class="metric-value metric-neutral"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            P&amp;L
+                        </div>
+
+                        <div
+                            id="position-unrealized-pnl"
+                            class="metric-value"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Return
+                        </div>
+
+                        <div
+                            id="position-unrealized-return"
+                            class="metric-value"
+                        >
+                            --
+                        </div>
+                    </div>
+
+                    <div class="compact-stat">
+                        <div class="compact-stat-label">
+                            Holding
+                        </div>
+
+                        <div
+                            id="position-holding-days"
+                            class="metric-value metric-neutral"
+                        >
+                            --
+                        </div>
+                    </div>
+                </div>
+
+
+                <details class="dashboard-details trade-history-details">
+                    <summary>
+                        Trade History
+                    </summary>
+
+                    <div class="dashboard-details-content">
+                        <div class="optimizer-table-wrapper compact-table">
+                            <table class="optimizer-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Entry</th>
+                                        <th>Exit</th>
+                                        <th>Days</th>
+                                        <th>Entry Price</th>
+                                        <th>Exit Price</th>
+                                        <th>Return</th>
+                                        <th>Net P&amp;L</th>
+                                        <th>Fees</th>
+                                        <th>Result</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody id="trade-history-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </details>
+
+                <div id="trade-analytics-error"></div>
             </div>
-
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Closed Trades
-                    </div>
-                    <div
-                        id="trade-closed-count"
-                        class="metric-value metric-neutral"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Win Rate
-                    </div>
-                    <div
-                        id="trade-win-rate"
-                        class="metric-value"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Realized Net P&amp;L
-                    </div>
-                    <div
-                        id="trade-net-pnl"
-                        class="metric-value"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Profit Factor
-                    </div>
-                    <div
-                        id="trade-profit-factor"
-                        class="metric-value"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Avg Trade Return
-                    </div>
-                    <div
-                        id="trade-average-return"
-                        class="metric-value"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Avg Holding Period
-                    </div>
-                    <div
-                        id="trade-average-holding"
-                        class="metric-value metric-neutral"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Total Fees
-                    </div>
-                    <div
-                        id="trade-total-fees"
-                        class="metric-value metric-neutral"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Slippage Cost
-                    </div>
-                    <div
-                        id="trade-slippage-cost"
-                        class="metric-value metric-neutral"
-                    >
-                        --
-                    </div>
-                </div>
             </div>
-
-            <h3 class="section-title">
-                Open Position
-            </h3>
-
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Entry Date
-                    </div>
-                    <div
-                        id="position-entry-date"
-                        class="metric-value metric-neutral"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Entry Price
-                    </div>
-                    <div
-                        id="position-entry-price"
-                        class="metric-value metric-neutral"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Current Price
-                    </div>
-                    <div
-                        id="position-current-price"
-                        class="metric-value metric-neutral"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Unrealized P&amp;L
-                    </div>
-                    <div
-                        id="position-unrealized-pnl"
-                        class="metric-value"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Unrealized Return
-                    </div>
-                    <div
-                        id="position-unrealized-return"
-                        class="metric-value"
-                    >
-                        --
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">
-                        Holding Days
-                    </div>
-                    <div
-                        id="position-holding-days"
-                        class="metric-value metric-neutral"
-                    >
-                        --
-                    </div>
-                </div>
-            </div>
-
-            <h3 class="section-title">
-                Trade History
-            </h3>
-
-            <div class="optimizer-table-wrapper">
-                <table class="optimizer-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Entry</th>
-                            <th>Exit</th>
-                            <th>Days</th>
-                            <th>Entry Price</th>
-                            <th>Exit Price</th>
-                            <th>Return</th>
-                            <th>Net P&amp;L</th>
-                            <th>Fees</th>
-                            <th>Result</th>
-                        </tr>
-                    </thead>
-
-                    <tbody id="trade-history-body">
-                    </tbody>
-                </table>
-            </div>
-
-            <div id="trade-analytics-error"></div>
         </div>
 
         <script>
@@ -4635,7 +4995,19 @@ def read_root():
             }
 
 
-            function formatIstanbulChartTime(
+            const liveChartTimeZone =
+                Intl.DateTimeFormat()
+                .resolvedOptions()
+                .timeZone
+                || 'UTC';
+
+
+            const liveChartLocale =
+                navigator.language
+                || 'en-US';
+
+
+            function formatLocalChartTime(
                 time
             ) {
                 const milliseconds =
@@ -4650,10 +5022,10 @@ def read_root():
                 }
 
                 return new Intl.DateTimeFormat(
-                    'tr-TR',
+                    liveChartLocale,
                     {
                         timeZone:
-                            'Europe/Istanbul',
+                            liveChartTimeZone,
 
                         hour:
                             '2-digit',
@@ -4672,7 +5044,7 @@ def read_root():
             }
 
 
-            function formatIstanbulChartDateTime(
+            function formatLocalChartDateTime(
                 time
             ) {
                 const milliseconds =
@@ -4687,10 +5059,10 @@ def read_root():
                 }
 
                 return new Intl.DateTimeFormat(
-                    'tr-TR',
+                    liveChartLocale,
                     {
                         timeZone:
-                            'Europe/Istanbul',
+                            liveChartTimeZone,
 
                         day:
                             '2-digit',
@@ -4761,7 +5133,7 @@ def read_root():
 
                             timeScale: {
                             tickMarkFormatter:
-                                formatIstanbulChartTime,
+                                formatLocalChartTime,
                                 timeVisible: true,
                                 secondsVisible: false,
                                 borderColor: '#434651'

@@ -298,9 +298,12 @@ def test_frontend_contains_backtest_dashboard(
     assert 'id="live-technical-score"' in html
     assert 'id="live-technical-rating"' in html
     assert "calculateBollingerSeries" in html
-    assert "Europe/Istanbul" in html
-    assert "formatIstanbulChartTime" in html
-    assert "formatIstanbulChartDateTime" in html
+    assert "liveChartTimeZone" in html
+    assert "resolvedOptions" in html
+    assert "liveChartLocale" in html
+    assert "navigator.language" in html
+    assert "formatLocalChartTime" in html
+    assert "formatLocalChartDateTime" in html
     assert "tickMarkFormatter" in html
     assert "updateLiveTechnicalAnalysis" in html
     assert 'id="market-summary-panel"' in html
@@ -312,6 +315,15 @@ def test_frontend_contains_backtest_dashboard(
     assert "setAnalysisMode" in html
     assert "renderMarketFactors" in html
     assert "updateMarketInterpretation" in html
+    assert "compact-dashboard-section" in html
+    assert "compact-metrics" in html
+    assert "compact-position" in html
+    assert "More optimization details" in html
+    assert "Validation Settings" in html
+    assert "More validation metrics" in html
+    assert "Fold Details" in html
+    assert "More trade statistics" in html
+    assert "Trade History" in html
     assert 'id="market-summary-trend"' in html
     assert 'id="market-summary-momentum"' in html
     assert 'id="market-summary-volatility"' in html
