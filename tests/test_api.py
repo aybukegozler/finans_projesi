@@ -312,6 +312,15 @@ def test_frontend_contains_backtest_dashboard(
     assert "setAnalysisMode" in html
     assert "renderMarketFactors" in html
     assert "updateMarketInterpretation" in html
+    assert 'id="market-summary-trend"' in html
+    assert 'id="market-summary-momentum"' in html
+    assert 'id="market-summary-volatility"' in html
+    assert "TEKNİK UYUM SKORU" in html
+    assert "translateMarketInterpretationValue" in html
+    assert "applyAnalysisModeVisibility" in html
+    assert "setMetricCardVisible" in html
+    assert "toggleNamedSection" in html
+    assert "ai-analyst-panel is-collapsed" in html
     assert 'id="ai-analyst-panel"' in html
     assert 'id="ai-explain-button"' in html
     assert 'id="ai-mode-simple"' in html

@@ -1314,6 +1314,50 @@ def read_root():
                 margin-bottom: 18px;
             }
 
+            .market-core-summary {
+                display: grid;
+                grid-template-columns:
+                    repeat(
+                        3,
+                        minmax(0, 1fr)
+                    );
+                gap: 10px;
+                margin-bottom: 16px;
+            }
+
+            .market-core-row {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+                padding: 13px 14px;
+                border: 1px solid #252a37;
+                border-radius: 8px;
+                background: #11151f;
+            }
+
+            .market-core-label {
+                color: #777f8e;
+                font-size: 10px;
+                font-weight: 800;
+                letter-spacing: 0.07em;
+                text-transform: uppercase;
+            }
+
+            .market-core-value {
+                color: #d1d4dc;
+                font-size: 15px;
+                font-weight: 800;
+            }
+
+            @media (
+                max-width: 760px
+            ) {
+                .market-core-summary {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+
             .market-summary-grid {
                 display: grid;
                 grid-template-columns:
@@ -1422,6 +1466,31 @@ def read_root():
                 border-radius: 12px;
                 background: #171b26;
             }
+
+            .ai-analyst-panel.is-collapsed {
+                padding: 14px;
+            }
+
+            .ai-analyst-panel.is-collapsed
+            .ai-analyst-header {
+                justify-content: center;
+            }
+
+            .ai-analyst-panel.is-collapsed
+            .ai-analyst-header > div {
+                display: none;
+            }
+
+            .ai-analyst-panel.is-collapsed
+            .ai-analyst-status {
+                display: none;
+            }
+
+            .ai-analyst-panel.is-collapsed
+            .ai-analyst-content {
+                display: none;
+            }
+
 
             .ai-analyst-header {
                 display: flex;
@@ -2145,7 +2214,7 @@ def read_root():
 
                     <div>
                         <div class="market-summary-label">
-                            HEURISTIC CONFIDENCE
+                            TEKNİK UYUM SKORU
                         </div>
 
                         <div
@@ -2162,6 +2231,47 @@ def read_root():
                     class="market-summary-headline"
                 >
                     Connect to a market to begin analysis.
+                </div>
+
+                <div class="market-core-summary">
+                    <div class="market-core-row">
+                        <span class="market-core-label">
+                            Trend
+                        </span>
+
+                        <span
+                            id="market-summary-trend"
+                            class="market-core-value"
+                        >
+                            --
+                        </span>
+                    </div>
+
+                    <div class="market-core-row">
+                        <span class="market-core-label">
+                            Momentum
+                        </span>
+
+                        <span
+                            id="market-summary-momentum"
+                            class="market-core-value"
+                        >
+                            --
+                        </span>
+                    </div>
+
+                    <div class="market-core-row">
+                        <span class="market-core-label">
+                            Volatilite
+                        </span>
+
+                        <span
+                            id="market-summary-volatility"
+                            class="market-core-value"
+                        >
+                            --
+                        </span>
+                    </div>
                 </div>
 
                 <div class="market-summary-grid">
@@ -2214,7 +2324,7 @@ def read_root():
 
             <div
                 id="ai-analyst-panel"
-                class="ai-analyst-panel"
+                class="ai-analyst-panel is-collapsed"
             >
                 <div class="ai-analyst-header">
                     <div>
@@ -5523,6 +5633,15 @@ def read_root():
 
 
             async function requestAiMarketExplanation() {
+                const panel =
+                    document.getElementById(
+                        'ai-analyst-panel'
+                    );
+
+                panel.classList.remove(
+                    'is-collapsed'
+                );
+
                 const button =
                     document.getElementById(
                         'ai-explain-button'
@@ -5715,6 +5834,137 @@ def read_root():
             }
 
 
+            function setMetricCardVisible(
+                elementId,
+                visible
+            ) {
+                const element =
+                    document.getElementById(
+                        elementId
+                    );
+
+                if (!element) {
+                    return;
+                }
+
+                const card =
+                    element.closest(
+                        '.metric-card'
+                    );
+
+                if (!card) {
+                    return;
+                }
+
+                card.style.display =
+                    visible
+                    ? ''
+                    : 'none';
+            }
+
+
+            function toggleNamedSection(
+                title,
+                visible
+            ) {
+                const headings =
+                    document.querySelectorAll(
+                        '.section-title'
+                    );
+
+                for (
+                    const heading
+                    of headings
+                ) {
+                    if (
+                        heading.textContent
+                        .trim()
+                        .toLowerCase()
+                        !== title.toLowerCase()
+                    ) {
+                        continue;
+                    }
+
+                    heading.style.display =
+                        visible
+                        ? ''
+                        : 'none';
+
+                    let sibling =
+                        heading.nextElementSibling;
+
+                    if (
+                        sibling
+                        && sibling.classList.contains(
+                            'metrics-grid'
+                        )
+                    ) {
+                        sibling.style.display =
+                            visible
+                            ? ''
+                            : 'none';
+                    }
+
+                    break;
+                }
+            }
+
+
+            function applyAnalysisModeVisibility(
+                mode
+            ) {
+                const advanced =
+                    mode === 'advanced';
+
+
+                // Basic view keeps only the
+                // essential live-market numbers.
+                const advancedOnlyMarketMetrics = [
+                    'live-open',
+                    'live-high',
+                    'live-low',
+                    'live-trades',
+                    'live-candle',
+                    'live-24h-high',
+                    'live-24h-low',
+                    'live-quote-volume'
+                ];
+
+                advancedOnlyMarketMetrics.forEach(
+                    id => {
+                        setMetricCardVisible(
+                            id,
+                            advanced
+                        );
+                    }
+                );
+
+
+                // Detailed indicator cards are
+                // intentionally hidden in Basic.
+                toggleNamedSection(
+                    'Live Indicators',
+                    advanced
+                );
+
+
+                // "What matters / low relevance"
+                // is useful in Advanced, but Basic
+                // already gives the concise summary.
+                const factorGrid =
+                    document.querySelector(
+                        '.market-summary-grid'
+                    );
+
+                if (factorGrid) {
+                    factorGrid.style.display =
+                        advanced
+                        ? ''
+                        : 'none';
+                }
+            }
+
+
             function setAnalysisMode(
                 mode
             ) {
@@ -5749,6 +5999,10 @@ def read_root():
                 advancedButton.classList.toggle(
                     'active',
                     isAdvanced
+                );
+
+                applyAnalysisModeVisibility(
+                    mode
                 );
 
                 try {
@@ -5871,6 +6125,37 @@ def read_root():
             }
 
 
+            function translateMarketInterpretationValue(
+                value
+            ) {
+                const translations = {
+                    'BULLISH':
+                        '↑ Yukarı yönlü',
+
+                    'BEARISH':
+                        '↓ Aşağı yönlü',
+
+                    'NEUTRAL':
+                        '→ Nötr',
+
+                    'LOW':
+                        'Düşük',
+
+                    'NORMAL':
+                        'Normal',
+
+                    'HIGH':
+                        'Yüksek'
+                };
+
+                return (
+                    translations[value]
+                    || value
+                    || '--'
+                );
+            }
+
+
             function updateMarketInterpretation(
                 interpretation
             ) {
@@ -5940,6 +6225,34 @@ def read_root():
 
                     return;
                 }
+
+
+                document.getElementById(
+                    'market-summary-trend'
+                ).textContent =
+                    translateMarketInterpretationValue(
+                        interpretation.trend
+                        ? interpretation.trend.direction
+                        : null
+                    );
+
+                document.getElementById(
+                    'market-summary-momentum'
+                ).textContent =
+                    translateMarketInterpretationValue(
+                        interpretation.momentum
+                        ? interpretation.momentum.direction
+                        : null
+                    );
+
+                document.getElementById(
+                    'market-summary-volatility'
+                ).textContent =
+                    translateMarketInterpretationValue(
+                        interpretation.volatility
+                        ? interpretation.volatility.state
+                        : null
+                    );
 
 
                 const state =
