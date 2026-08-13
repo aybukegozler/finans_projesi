@@ -620,6 +620,7 @@ def market_24h_ticker(
 async def explain_market(
     symbol: str = "BTCUSDT",
     interval: str = "1m",
+    mode: str = "simple",
 ):
     """
     Generate an educational AI explanation for
@@ -629,6 +630,22 @@ async def explain_market(
     LocalLLMAnalyst returns a deterministic
     fallback explanation.
     """
+
+    normalized_mode = (
+        mode.strip().lower()
+    )
+
+    if normalized_mode not in {
+        "simple",
+        "technical",
+    }:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "mode must be "
+                "'simple' or 'technical'."
+            ),
+        )
 
     normalized_symbol = (
         normalize_symbol(
@@ -690,6 +707,7 @@ async def explain_market(
         await asyncio.to_thread(
             LocalLLMAnalyst().analyze,
             interpretation,
+            normalized_mode,
         )
     )
 
@@ -699,6 +717,9 @@ async def explain_market(
 
         "interval":
             validated_interval,
+
+        "mode":
+            normalized_mode,
 
         "interpretation":
             interpretation,
@@ -1429,6 +1450,35 @@ def read_root():
                 font-size: 13px;
                 line-height: 1.5;
             }
+
+            .ai-mode-selector {
+                display: flex;
+                gap: 7px;
+                margin-top: 13px;
+            }
+
+            .ai-mode-button {
+                padding: 7px 11px;
+                border: 1px solid #343b4d;
+                border-radius: 7px;
+                background: #11151f;
+                color: #858d9c;
+                font-size: 12px;
+                font-weight: 700;
+                cursor: pointer;
+            }
+
+            .ai-mode-button:hover {
+                color: #ffffff;
+                border-color: #4a5265;
+            }
+
+            .ai-mode-button.active {
+                color: #ffffff;
+                background: #2d3444;
+                border-color: #596174;
+            }
+
 
             .ai-explain-button {
                 padding: 11px 18px;
@@ -2179,6 +2229,24 @@ def read_root():
                         <div class="ai-analyst-subtitle">
                             Mevcut teknik verileri
                             Qwen3 ile sade Türkçe olarak açıklar.
+                        </div>
+
+                        <div class="ai-mode-selector">
+                            <button
+                                id="ai-mode-simple"
+                                class="ai-mode-button active"
+                                onclick="setAiAnalysisMode('simple')"
+                            >
+                                Basit Anlatım
+                            </button>
+
+                            <button
+                                id="ai-mode-technical"
+                                class="ai-mode-button"
+                                onclick="setAiAnalysisMode('technical')"
+                            >
+                                Teknik Anlatım
+                            </button>
                         </div>
                     </div>
 
@@ -4417,6 +4485,129 @@ def read_root():
             }
 
 
+            function chartTimeToMilliseconds(
+                time
+            ) {
+                if (
+                    typeof time === 'number'
+                ) {
+                    return time * 1000;
+                }
+
+                if (
+                    typeof time === 'string'
+                ) {
+                    const parsed =
+                        Date.parse(time);
+
+                    return (
+                        Number.isNaN(parsed)
+                        ? null
+                        : parsed
+                    );
+                }
+
+                if (
+                    time
+                    && typeof time === 'object'
+                    && 'year' in time
+                    && 'month' in time
+                    && 'day' in time
+                ) {
+                    return Date.UTC(
+                        time.year,
+                        time.month - 1,
+                        time.day
+                    );
+                }
+
+                return null;
+            }
+
+
+            function formatIstanbulChartTime(
+                time
+            ) {
+                const milliseconds =
+                    chartTimeToMilliseconds(
+                        time
+                    );
+
+                if (
+                    milliseconds === null
+                ) {
+                    return '';
+                }
+
+                return new Intl.DateTimeFormat(
+                    'tr-TR',
+                    {
+                        timeZone:
+                            'Europe/Istanbul',
+
+                        hour:
+                            '2-digit',
+
+                        minute:
+                            '2-digit',
+
+                        hour12:
+                            false
+                    }
+                ).format(
+                    new Date(
+                        milliseconds
+                    )
+                );
+            }
+
+
+            function formatIstanbulChartDateTime(
+                time
+            ) {
+                const milliseconds =
+                    chartTimeToMilliseconds(
+                        time
+                    );
+
+                if (
+                    milliseconds === null
+                ) {
+                    return '';
+                }
+
+                return new Intl.DateTimeFormat(
+                    'tr-TR',
+                    {
+                        timeZone:
+                            'Europe/Istanbul',
+
+                        day:
+                            '2-digit',
+
+                        month:
+                            'short',
+
+                        year:
+                            '2-digit',
+
+                        hour:
+                            '2-digit',
+
+                        minute:
+                            '2-digit',
+
+                        hour12:
+                            false
+                    }
+                ).format(
+                    new Date(
+                        milliseconds
+                    )
+                );
+            }
+
+
             function initializeLiveMarketChart() {
                 const container =
                     document.getElementById(
@@ -4459,6 +4650,8 @@ def read_root():
                             },
 
                             timeScale: {
+                            tickMarkFormatter:
+                                formatIstanbulChartTime,
                                 timeVisible: true,
                                 secondsVisible: false,
                                 borderColor: '#434651'
@@ -5138,6 +5331,120 @@ def read_root():
             }
 
 
+            let aiAnalysisMode =
+                'simple';
+
+
+            function setAiAnalysisMode(
+                mode
+            ) {
+                if (
+                    mode !== 'simple'
+                    && mode !== 'technical'
+                ) {
+                    return;
+                }
+
+                aiAnalysisMode = mode;
+
+                document.getElementById(
+                    'ai-mode-simple'
+                ).classList.toggle(
+                    'active',
+                    mode === 'simple'
+                );
+
+                document.getElementById(
+                    'ai-mode-technical'
+                ).classList.toggle(
+                    'active',
+                    mode === 'technical'
+                );
+
+                document.getElementById(
+                    'ai-analyst-status'
+                ).textContent =
+                    (
+                        mode === 'simple'
+                        ? (
+                            'Basit anlatım seçildi. '
+                            + 'Teknik terimler sadeleştirilecek.'
+                        )
+                        : (
+                            'Teknik anlatım seçildi. '
+                            + 'Gösterge ayrıntıları korunacak.'
+                        )
+                    );
+            }
+
+
+            function translateAiLabel(
+                value
+            ) {
+                const translations = {
+                    'SMA Trend':
+                        'SMA Trendi',
+
+                    'MACD Momentum':
+                        'MACD Momentumu',
+
+                    'Bollinger Position':
+                        'Bollinger Konumu',
+
+                    'RSI':
+                        'RSI',
+
+                    'BULLISH':
+                        'Yukarı Yönlü',
+
+                    'BEARISH':
+                        'Aşağı Yönlü',
+
+                    'NEUTRAL':
+                        'Nötr',
+
+                    'BULLISH_BIAS':
+                        'Yukarı Eğilim',
+
+                    'BEARISH_BIAS':
+                        'Aşağı Eğilim',
+
+                    'OVERBOUGHT':
+                        'Aşırı Alım',
+
+                    'OVERSOLD':
+                        'Aşırı Satım',
+
+                    'NEAR_UPPER_BAND':
+                        'Üst Banda Yakın',
+
+                    'NEAR_LOWER_BAND':
+                        'Alt Banda Yakın',
+
+                    'MID_RANGE':
+                        'Orta Bölgede',
+
+                    'OUTER_REGION':
+                        'Dış Bölgede',
+
+                    'HIGH':
+                        'Yüksek',
+
+                    'MEDIUM':
+                        'Orta',
+
+                    'LOW':
+                        'Düşük'
+                };
+
+                return (
+                    translations[value]
+                    || value
+                    || '--'
+                );
+            }
+
+
             function renderAiFactorList(
                 elementId,
                 factors
@@ -5179,7 +5486,9 @@ def read_root():
                             'ai-analysis-factor-name';
 
                         name.textContent =
-                            factor.name || '--';
+                            translateAiLabel(
+                                factor.name
+                            );
 
 
                         const meta =
@@ -5191,14 +5500,12 @@ def read_root():
                             'ai-analysis-factor-meta';
 
                         meta.textContent =
-                            (
+                            translateAiLabel(
                                 factor.direction
-                                || '--'
                             )
                             + ' · '
-                            + (
+                            + translateAiLabel(
                                 factor.importance
-                                || '--'
                             );
 
 
@@ -5262,7 +5569,8 @@ def read_root():
                         new URLSearchParams(
                             {
                                 symbol: symbol,
-                                interval: interval
+                                interval: interval,
+                                mode: aiAnalysisMode
                             }
                         );
 
@@ -5355,6 +5663,13 @@ def read_root():
                             + payload.symbol
                             + ' · '
                             + payload.interval
+                            + ' · '
+                            + (
+                                payload.mode
+                                === 'simple'
+                                ? 'Basit'
+                                : 'Teknik'
+                            )
                         );
 
 

@@ -298,6 +298,10 @@ def test_frontend_contains_backtest_dashboard(
     assert 'id="live-technical-score"' in html
     assert 'id="live-technical-rating"' in html
     assert "calculateBollingerSeries" in html
+    assert "Europe/Istanbul" in html
+    assert "formatIstanbulChartTime" in html
+    assert "formatIstanbulChartDateTime" in html
+    assert "tickMarkFormatter" in html
     assert "updateLiveTechnicalAnalysis" in html
     assert 'id="market-summary-panel"' in html
     assert 'id="market-summary-state"' in html
@@ -310,6 +314,10 @@ def test_frontend_contains_backtest_dashboard(
     assert "updateMarketInterpretation" in html
     assert 'id="ai-analyst-panel"' in html
     assert 'id="ai-explain-button"' in html
+    assert 'id="ai-mode-simple"' in html
+    assert 'id="ai-mode-technical"' in html
+    assert "setAiAnalysisMode" in html
+    assert "translateAiLabel" in html
     assert 'id="ai-analyst-status"' in html
     assert 'id="ai-analyst-content"' in html
     assert 'id="ai-analysis-summary"' in html
