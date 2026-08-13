@@ -316,6 +316,13 @@ def test_frontend_contains_backtest_dashboard(
     assert "renderMarketFactors" in html
     assert "updateMarketInterpretation" in html
     assert "compact-dashboard-section" in html
+    assert "#dashboard-section" in html
+    assert "dashboard-authenticated" in html
+    assert "body:not(.dashboard-authenticated)" in html
+    assert "document.body.classList.add" in html
+    assert "document.body.classList.remove" in html
+    assert "dashboardSection.style.display" in html
+    assert "loginSection.style.display" in html
     assert "compact-metrics" in html
     assert "compact-position" in html
     assert "More optimization details" in html
@@ -347,6 +354,16 @@ def test_frontend_contains_backtest_dashboard(
     assert 'id="ai-analysis-low"' in html
     assert 'id="ai-analysis-note"' in html
     assert "requestAiMarketExplanation" in html
+    assert 'id="ai-change-button"' in html
+    assert 'id="ai-change-content"' in html
+    assert 'id="ai-change-summary"' in html
+    assert 'id="ai-change-list"' in html
+    assert 'id="ai-change-explanation"' in html
+    assert "requestAiMarketChange" in html
+    assert "saveAiMarketBaseline" in html
+    assert "loadAiMarketBaseline" in html
+    assert "renderAiMarketChange" in html
+    assert "/api/market/explain-change?" in html
     assert "renderAiFactorList" in html
     assert "/api/market/explain?" in html
     assert "renderLiveSignalHistory" in html

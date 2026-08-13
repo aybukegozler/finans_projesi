@@ -29,7 +29,9 @@ from src.trade_analytics import analyze_trades
 from src.live_signal import LiveSMAEngine
 from src.technical_indicators import calculate_technical_snapshot
 from src.market_interpreter import MarketInterpreter
+from src.market_change import MarketChangeDetector
 from src.llm_analyst import LocalLLMAnalyst
+from src.llm_change_analyst import LocalChangeAnalyst
 from src.binance_market import (
     get_klines,
     get_24h_ticker,
@@ -616,6 +618,142 @@ def market_24h_ticker(
 
 
 # Binance Live Market WebSocket
+@app.post("/api/market/explain-change")
+async def explain_market_change(
+    previous: dict,
+    symbol: str = "BTCUSDT",
+    interval: str = "1m",
+    mode: str = "simple",
+):
+    normalized_mode = (
+        mode.strip().lower()
+    )
+
+    if normalized_mode not in {
+        "simple",
+        "technical",
+    }:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "mode must be "
+                "'simple' or 'technical'."
+            ),
+        )
+
+    normalized_symbol = normalize_symbol(
+        symbol
+    )
+
+    validated_interval = validate_interval(
+        interval
+    )
+
+    if not isinstance(
+        previous,
+        dict,
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "previous market interpretation "
+                "is required."
+            ),
+        )
+
+    if not previous.get(
+        "ready"
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "previous market interpretation "
+                "is not ready."
+            ),
+        )
+
+    candles = await asyncio.to_thread(
+        get_klines,
+        normalized_symbol,
+        validated_interval,
+        150,
+    )
+
+    if len(candles) < 50:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Not enough market data "
+                "for comparison."
+            ),
+        )
+
+    live_engine = LiveSMAEngine(
+        20,
+        50,
+    )
+
+    live_snapshot = live_engine.seed(
+        candles
+    )
+
+    closes = [
+        candle["close"]
+        for candle in candles
+    ]
+
+    technical_snapshot = (
+        calculate_technical_snapshot(
+            closes
+        )
+    )
+
+    current = (
+        MarketInterpreter()
+        .interpret(
+            technical_snapshot,
+            live_snapshot,
+        )
+    )
+
+    change = (
+        MarketChangeDetector()
+        .compare(
+            previous,
+            current,
+        )
+    )
+
+    analysis = await asyncio.to_thread(
+        LocalChangeAnalyst().analyze,
+        change,
+        normalized_mode,
+    )
+
+    return {
+        "symbol":
+            normalized_symbol,
+
+        "interval":
+            validated_interval,
+
+        "mode":
+            normalized_mode,
+
+        "previous":
+            previous,
+
+        "current":
+            current,
+
+        "change":
+            change,
+
+        "analysis":
+            analysis,
+    }
+
+
 @app.post("/api/market/explain")
 async def explain_market(
     symbol: str = "BTCUSDT",
@@ -1095,6 +1233,29 @@ def read_root():
                 margin-top: 10px;
                 font-weight: bold;
             }
+
+            /*
+             * Authentication visibility gate.
+             *
+             * Login olmadan body içindeki dashboard
+             * parçalarının hiçbirinin görünmesine izin verme.
+             * Bu aynı zamanda yanlışlıkla dashboard wrapper
+             * dışına taşan bölümleri de korur.
+             */
+            body:not(.dashboard-authenticated)
+            > *:not(#login-section):not(script) {
+                display: none !important;
+            }
+
+            body.dashboard-authenticated
+            #login-section {
+                display: none !important;
+            }
+
+            #dashboard-section {
+                display: none;
+            }
+
 
             .compact-dashboard-section {
                 width: 100%;
@@ -1734,6 +1895,71 @@ def read_root():
                 color: #ffffff;
                 background: #2d3444;
                 border-color: #596174;
+            }
+
+
+            .ai-action-buttons {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+
+            .ai-change-button {
+                padding: 11px 18px;
+                border: 1px solid #3A4254;
+                border-radius: 8px;
+                background: #171C28;
+                color: #D1D4DC;
+                font-weight: 800;
+                cursor: pointer;
+            }
+
+            .ai-change-button:hover {
+                border-color: #596174;
+                background: #202635;
+            }
+
+            .ai-change-button:disabled {
+                opacity: 0.55;
+                cursor: wait;
+            }
+
+            .ai-change-content {
+                margin-top: 18px;
+            }
+
+            .ai-change-content.is-hidden {
+                display: none;
+            }
+
+            .ai-change-list {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .ai-change-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 18px;
+                padding: 10px 0;
+                border-bottom: 1px solid #252A37;
+            }
+
+            .ai-change-row:last-child {
+                border-bottom: none;
+            }
+
+            .ai-change-label {
+                color: #D1D4DC;
+                font-weight: 700;
+            }
+
+            .ai-change-values {
+                color: #9AA2B2;
+                font-size: 13px;
+                text-align: right;
             }
 
 
@@ -2548,13 +2774,23 @@ def read_root():
                         </div>
                     </div>
 
-                    <button
-                        id="ai-explain-button"
-                        class="ai-explain-button"
-                        onclick="requestAiMarketExplanation()"
-                    >
-                        ✨ AI ile Açıkla
-                    </button>
+                    <div class="ai-action-buttons">
+                        <button
+                            id="ai-explain-button"
+                            class="ai-explain-button"
+                            onclick="requestAiMarketExplanation()"
+                        >
+                            ✨ AI ile Açıkla
+                        </button>
+
+                        <button
+                            id="ai-change-button"
+                            class="ai-change-button"
+                            onclick="requestAiMarketChange()"
+                        >
+                            ↻ Ne Değişti?
+                        </button>
+                    </div>
                 </div>
 
                 <div
@@ -2627,6 +2863,61 @@ def read_root():
 
                     <div
                         id="ai-analysis-source"
+                        class="ai-analysis-source"
+                    ></div>
+                </div>
+
+
+                <div
+                    id="ai-change-content"
+                    class="ai-change-content is-hidden"
+                >
+                    <div class="ai-analysis-section">
+                        <div class="ai-analysis-label">
+                            SON ANALİZDEN BERİ
+                        </div>
+
+                        <div
+                            id="ai-change-summary"
+                            class="ai-analysis-summary"
+                        ></div>
+                    </div>
+
+                    <div class="ai-analysis-section">
+                        <div class="ai-analysis-label">
+                            DEĞİŞİKLİKLER
+                        </div>
+
+                        <div
+                            id="ai-change-list"
+                            class="ai-change-list"
+                        ></div>
+                    </div>
+
+                    <div class="ai-analysis-section">
+                        <div class="ai-analysis-label">
+                            AI YORUMU
+                        </div>
+
+                        <div
+                            id="ai-change-explanation"
+                            class="ai-analysis-text"
+                        ></div>
+                    </div>
+
+                    <div class="ai-analysis-section">
+                        <div class="ai-analysis-label">
+                            EĞİTİM NOTU
+                        </div>
+
+                        <div
+                            id="ai-change-note"
+                            class="ai-analysis-text"
+                        ></div>
+                    </div>
+
+                    <div
+                        id="ai-change-source"
                         class="ai-analysis-source"
                     ></div>
                 </div>
@@ -3679,14 +3970,44 @@ def read_root():
             }
 
             function logout() {
-                localStorage.removeItem('quant_token');
-                localStorage.removeItem('quant_role');
-                location.reload(); // Sayfayı yenileyerek giriş ekranına dön
+                document.body.classList.remove(
+                    'dashboard-authenticated'
+                );
+                localStorage.removeItem(
+                    'quant_token'
+                );
+
+                localStorage.removeItem(
+                    'quant_role'
+                );
+
+                document.getElementById(
+                    'dashboard-section'
+                ).style.display =
+                    'none';
+
+                location.reload();
             }
 
             function showDashboard() {
-                document.getElementById('login-section').style.display = 'none';
-                document.getElementById('dashboard-section').style.display = 'block';
+                document.body.classList.add(
+                    'dashboard-authenticated'
+                );
+                const loginSection =
+                    document.getElementById(
+                        'login-section'
+                    );
+
+                const dashboardSection =
+                    document.getElementById(
+                        'dashboard-section'
+                    );
+
+                loginSection.style.display =
+                    'none';
+
+                dashboardSection.style.display =
+                    'block';
 
                 // Rol etiketini güncelle (ADMIN veya USER)
                 const userRole = localStorage.getItem('quant_role').toUpperCase();
@@ -3698,9 +4019,30 @@ def read_root():
                 loadBacktestData();
             }
 
+            // Sayfa her zaman locked durumda başlar.
+            // Geçerli local session varsa showDashboard açar.
+            document.body.classList.remove(
+                'dashboard-authenticated'
+            );
+
             // Sayfa yüklendiğinde oturum açık mı kontrol et
-            if (localStorage.getItem('quant_token')) {
+            if (
+                localStorage.getItem(
+                    'quant_token'
+                )
+            ) {
                 showDashboard();
+
+            } else {
+                document.getElementById(
+                    'dashboard-section'
+                ).style.display =
+                    'none';
+
+                document.getElementById(
+                    'login-section'
+                ).style.display =
+                    'block';
             }
 
             // --- BACKTEST DASHBOARD MANTIĞI ---
@@ -5927,6 +6269,328 @@ def read_root():
             }
 
 
+            const AI_MARKET_BASELINE_KEY =
+                'quant_ai_market_baseline_v1';
+
+
+            function saveAiMarketBaseline(
+                symbol,
+                interval,
+                interpretation
+            ) {
+                if (
+                    !interpretation
+                    || !interpretation.ready
+                ) {
+                    return;
+                }
+
+                const baseline = {
+                    symbol: symbol,
+                    interval: interval,
+                    savedAt:
+                        Date.now(),
+                    interpretation:
+                        interpretation
+                };
+
+                try {
+                    localStorage.setItem(
+                        AI_MARKET_BASELINE_KEY,
+                        JSON.stringify(
+                            baseline
+                        )
+                    );
+
+                } catch (error) {
+                    console.warn(
+                        'AI baseline could not be saved:',
+                        error
+                    );
+                }
+            }
+
+
+            function loadAiMarketBaseline(
+                symbol,
+                interval
+            ) {
+                try {
+                    const raw =
+                        localStorage.getItem(
+                            AI_MARKET_BASELINE_KEY
+                        );
+
+                    if (!raw) {
+                        return null;
+                    }
+
+                    const baseline =
+                        JSON.parse(
+                            raw
+                        );
+
+                    if (
+                        baseline.symbol
+                        !== symbol
+                        || baseline.interval
+                        !== interval
+                    ) {
+                        return null;
+                    }
+
+                    if (
+                        !baseline.interpretation
+                        || !baseline
+                            .interpretation
+                            .ready
+                    ) {
+                        return null;
+                    }
+
+                    return baseline;
+
+                } catch (error) {
+                    return null;
+                }
+            }
+
+
+            function formatAiChangeValue(
+                value
+            ) {
+                if (
+                    value === null
+                    || value === undefined
+                    || value === ''
+                ) {
+                    return '--';
+                }
+
+                return translateAiLabel(
+                    String(
+                        value
+                    )
+                );
+            }
+
+
+            function renderAiMarketChange(
+                payload
+            ) {
+                const change =
+                    payload.change
+                    || {};
+
+                const analysis =
+                    payload.analysis
+                    || {};
+
+                document.getElementById(
+                    'ai-change-summary'
+                ).textContent =
+                    analysis.summary
+                    || change.headline
+                    || '--';
+
+
+                document.getElementById(
+                    'ai-change-explanation'
+                ).textContent =
+                    analysis.explanation
+                    || '--';
+
+
+                document.getElementById(
+                    'ai-change-note'
+                ).textContent =
+                    analysis.educational_note
+                    || '--';
+
+
+                const list =
+                    document.getElementById(
+                        'ai-change-list'
+                    );
+
+                list.replaceChildren();
+
+
+                const appendChangeRow = (
+                    label,
+                    before,
+                    after
+                ) => {
+                    const row =
+                        document.createElement(
+                            'div'
+                        );
+
+                    row.className =
+                        'ai-change-row';
+
+
+                    const name =
+                        document.createElement(
+                            'span'
+                        );
+
+                    name.className =
+                        'ai-change-label';
+
+                    name.textContent =
+                        label;
+
+
+                    const values =
+                        document.createElement(
+                            'span'
+                        );
+
+                    values.className =
+                        'ai-change-values';
+
+                    values.textContent =
+                        (
+                            formatAiChangeValue(
+                                before
+                            )
+                            + ' → '
+                            + formatAiChangeValue(
+                                after
+                            )
+                        );
+
+
+                    row.append(
+                        name,
+                        values
+                    );
+
+                    list.appendChild(
+                        row
+                    );
+                };
+
+
+                const changes =
+                    Array.isArray(
+                        change.changes
+                    )
+                    ? change.changes
+                    : [];
+
+
+                changes.forEach(
+                    item => {
+                        appendChangeRow(
+                            translateAiLabel(
+                                item.label
+                            ),
+                            item.before,
+                            item.after
+                        );
+                    }
+                );
+
+
+                const confidence =
+                    change.confidence
+                    || {};
+
+                if (
+                    confidence.delta
+                    !== null
+                    && confidence.delta
+                    !== undefined
+                    && Math.abs(
+                        Number(
+                            confidence.delta
+                        )
+                    ) >= 5
+                ) {
+                    appendChangeRow(
+                        'Teknik Uyum',
+                        confidence.previous,
+                        confidence.current
+                    );
+                }
+
+
+                const technicalScore =
+                    change.technical_score
+                    || {};
+
+                if (
+                    technicalScore.delta
+                    !== null
+                    && technicalScore.delta
+                    !== undefined
+                    && Number(
+                        technicalScore.delta
+                    ) !== 0
+                ) {
+                    appendChangeRow(
+                        'Teknik Skor',
+                        technicalScore.previous,
+                        technicalScore.current
+                    );
+                }
+
+
+                if (
+                    list.children.length
+                    === 0
+                ) {
+                    list.textContent =
+                        (
+                            'Belirgin bir yapısal '
+                            + 'değişiklik tespit edilmedi.'
+                        );
+                }
+
+
+                const source =
+                    (
+                        analysis.source
+                        === 'ollama'
+                    )
+                    ? (
+                        'Local AI · '
+                        + analysis.model
+                    )
+                    : (
+                        'Deterministic analysis'
+                    );
+
+
+                document.getElementById(
+                    'ai-change-source'
+                ).textContent =
+                    (
+                        source
+                        + ' · '
+                        + payload.symbol
+                        + ' · '
+                        + payload.interval
+                        + ' · '
+                        + (
+                            payload.mode
+                            === 'technical'
+                            ? 'Teknik'
+                            : 'Basit'
+                        )
+                    );
+
+
+                document.getElementById(
+                    'ai-change-content'
+                ).classList.remove(
+                    'is-hidden'
+                );
+            }
+
+
             function renderAiFactorList(
                 elementId,
                 factors
@@ -6092,6 +6756,20 @@ def read_root():
                         payload.analysis;
 
 
+                    saveAiMarketBaseline(
+                        payload.symbol,
+                        payload.interval,
+                        payload.interpretation
+                    );
+
+
+                    document.getElementById(
+                        'ai-change-content'
+                    ).classList.add(
+                        'is-hidden'
+                    );
+
+
                     document.getElementById(
                         'ai-analysis-summary'
                     ).textContent =
@@ -6202,6 +6880,175 @@ def read_root():
 
                     button.textContent =
                         '✨ AI ile Açıkla';
+                }
+            }
+
+
+            async function requestAiMarketChange() {
+                const panel =
+                    document.getElementById(
+                        'ai-analyst-panel'
+                    );
+
+                panel.classList.remove(
+                    'is-collapsed'
+                );
+
+
+                const button =
+                    document.getElementById(
+                        'ai-change-button'
+                    );
+
+                const status =
+                    document.getElementById(
+                        'ai-analyst-status'
+                    );
+
+                const symbol =
+                    document.getElementById(
+                        'live-market-symbol'
+                    ).value;
+
+                const interval =
+                    document.getElementById(
+                        'live-market-interval'
+                    ).value;
+
+
+                const baseline =
+                    loadAiMarketBaseline(
+                        symbol,
+                        interval
+                    );
+
+
+                if (!baseline) {
+                    status.textContent =
+                        (
+                            'Önce bu market ve zaman '
+                            + 'aralığı için '
+                            + '"AI ile Açıkla" butonuna '
+                            + 'basarak bir referans '
+                            + 'analiz oluştur.'
+                        );
+
+                    return;
+                }
+
+
+                button.disabled = true;
+                button.textContent =
+                    '⏳ Karşılaştırılıyor...';
+
+                status.textContent =
+                    (
+                        'Son analiz ile güncel '
+                        + 'piyasa karşılaştırılıyor...'
+                    );
+
+
+                try {
+                    const params =
+                        new URLSearchParams(
+                            {
+                                symbol: symbol,
+                                interval: interval,
+                                mode: aiAnalysisMode
+                            }
+                        );
+
+
+                    const response =
+                        await fetch(
+                            (
+                                '/api/market/explain-change?'
+                                + params.toString()
+                            ),
+                            {
+                                method: 'POST',
+
+                                headers: {
+                                    'Content-Type':
+                                        'application/json'
+                                },
+
+                                body: JSON.stringify(
+                                    baseline
+                                        .interpretation
+                                )
+                            }
+                        );
+
+
+                    if (!response.ok) {
+                        throw new Error(
+                            'HTTP '
+                            + response.status
+                        );
+                    }
+
+
+                    const payload =
+                        await response.json();
+
+
+                    document.getElementById(
+                        'ai-analyst-content'
+                    ).classList.add(
+                        'is-hidden'
+                    );
+
+
+                    renderAiMarketChange(
+                        payload
+                    );
+
+
+                    saveAiMarketBaseline(
+                        payload.symbol,
+                        payload.interval,
+                        payload.current
+                    );
+
+
+                    if (
+                        payload.change
+                        && payload.change
+                            .meaningful
+                    ) {
+                        status.textContent =
+                            (
+                                'Son analizden beri '
+                                + 'değişiklikler bulundu.'
+                            );
+
+                    } else {
+                        status.textContent =
+                            (
+                                'Son analizden beri '
+                                + 'belirgin bir değişiklik yok.'
+                            );
+                    }
+
+                } catch (error) {
+                    console.error(
+                        'AI market change failed:',
+                        error
+                    );
+
+                    status.textContent =
+                        (
+                            'Karşılaştırma '
+                            + 'oluşturulamadı. '
+                            + 'Tekrar deneyebilirsin.'
+                        );
+
+                } finally {
+                    button.disabled = false;
+
+                    button.textContent =
+                        '↻ Ne Değişti?';
                 }
             }
 
